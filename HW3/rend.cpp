@@ -5,6 +5,7 @@
 #include	"math.h"
 #include	"Gz.h"
 #include	"rend.h"
+#include	<cmath>
 
 #define PI (float) 3.14159265358979323846
 
@@ -14,7 +15,21 @@ int GzRender::GzRotXMat(float degree, GzMatrix mat)
 // Create rotate matrix : rotate along x axis
 // Pass back the matrix using mat value
 */
+	float radian = degree * 2 * PI / 360.0;
+	float sinValue = sin(radian);
+	float cosValue = cos(radian);
 
+	GzMatrix Rx = { {1, 0, 0, 0},
+					{0, cosValue, -sinValue, 0},
+					{0, sinValue, cosValue, 0},
+					{0, 0, 0, 1} };
+
+	// pass back to mat
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			mat[i][j] = Rx[i][j];
+		}
+	}
 
 
 	return GZ_SUCCESS;
@@ -26,6 +41,21 @@ int GzRender::GzRotYMat(float degree, GzMatrix mat)
 // Create rotate matrix : rotate along y axis
 // Pass back the matrix using mat value
 */
+	float radian = degree * 2 * PI / 360.0;
+	float sinValue = sin(radian);
+	float cosValue = cos(radian);
+
+	GzMatrix Ry = { {cosValue, 0, sinValue, 0},
+		{0, 1, 0, 0},
+		{-sinValue, 0, cosValue, 0},
+		{0, 0, 0, 1} };
+
+	// pass back to 4x4 mat
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			mat[i][j] = Ry[i][j];
+		}
+	}
 
 	return GZ_SUCCESS;
 }
@@ -36,6 +66,21 @@ int GzRender::GzRotZMat(float degree, GzMatrix mat)
 // Create rotate matrix : rotate along z axis
 // Pass back the matrix using mat value
 */
+	float radian = degree * 2 * PI / 360.0;
+	float sinValue = sin(radian);
+	float cosValue = cos(radian);
+
+	GzMatrix Rz = { {cosValue, -sinValue, 0, 0},
+					{sinValue, cosValue, 0, 0},
+					{0, 0, 1, 0},
+					{0, 0, 0, 1} };
+
+	// pass back to 4x4 mat
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			mat[i][j] = Rz[i][j];
+		}
+	}
 
 	return GZ_SUCCESS;
 }
@@ -46,6 +91,21 @@ int GzRender::GzTrxMat(GzCoord translate, GzMatrix mat)
 // Create translation matrix
 // Pass back the matrix using mat value
 */
+	float x = translate[0];
+	float y = translate[1];
+	float z = translate[2];
+
+	GzMatrix Tr = { {1, 0, 0, x},
+		{0, 1, 0, y},
+		{0, 0, 1, z},
+		{0, 0, 0, 1} };
+
+	// pass back to 4x4 mat
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			mat[i][j] = Tr[i][j];
+		}
+	}
 
 	return GZ_SUCCESS;
 }
@@ -57,6 +117,21 @@ int GzRender::GzScaleMat(GzCoord scale, GzMatrix mat)
 // Create scaling matrix
 // Pass back the matrix using mat value
 */
+	float sx = scale[0];
+	float sy = scale[1];
+	float sz = scale[2];
+
+	GzMatrix Sc = { {sx, 0, 0, 0},
+		{0, sy, 0, 0},
+		{0, 0, sz, 0},
+		{0, 0, 0, 1} };
+
+	// pass back to 4x4 mat
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			mat[i][j] = Sc[i][j];
+		}
+	}
 
 	return GZ_SUCCESS;
 }
@@ -74,12 +149,46 @@ GzRender::GzRender(int xRes, int yRes)
 
 	framebuffer = (char*) malloc (3 * sizeof(char) * xRes * yRes);
 	// framebuffer = (char*)malloc(3 * xres * yres);
-	pixelbuffer = (GzPixel*)malloc(xres * yres * sizeof(GzPixel));
+	pixelbuffer = (GzPixel*) malloc (xres * yres * sizeof(GzPixel));
 
 /* HW 3.6
 - setup Xsp and anything only done once 
 - init default camera 
 */ 
+	// Setup Xsp
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			Xsp[i][j] = 0;
+		}
+	}
+
+	Xsp[0][0] = xres / 2;
+	Xsp[0][3] = xres / 2;
+	
+	Xsp[1][1] = -yres / 2;
+	Xsp[1][3] = yres / 2;
+
+	Xsp[2][2] = MAXINT;
+	Xsp[3][3] = 1;
+
+
+	// Init default camera
+	m_camera.position[X] = DEFAULT_IM_X;
+	m_camera.position[Y] = DEFAULT_IM_Y;
+	m_camera.position[Z] = DEFAULT_IM_Z;
+
+	m_camera.worldup[X] = 0;
+	m_camera.worldup[Y] = 1;
+	m_camera.worldup[Z] = 0;
+
+	m_camera.FOV = DEFAULT_FOV;
+
+	m_camera.lookat[X] = 0;
+	m_camera.lookat[Y] = 0;
+	m_camera.lookat[Z] = 0;
+
+
+
 }
 
 GzRender::~GzRender()
@@ -102,6 +211,32 @@ int GzRender::GzDefault()
 	return GZ_SUCCESS;
 }
 
+float DotProduct(GzCoord a, GzCoord b) {
+	float result = 0.0f;
+	for (int i = 0; i < 3/*sizeof(a) / sizeof(a[0])*/; i++) {
+		result += a[i] * b[i];
+	}
+
+	return result;
+}
+
+float* CrossProduct(GzCoord a, GzCoord b) {
+	float resultX = a[Y] * b[Z] - a[Z] * b[Y];
+	float resultY = a[Z] * b[X] - a[X] * b[Z];
+	float resultZ = a[X] * b[Y] - a[Y] * b[X];
+
+	GzCoord result = {resultX, resultY, resultZ};
+
+	return result;
+}
+
+// Calculate magnitude of a vector
+// sqrt(x^2 + y^2 + z^2)
+float CalculateMag(GzCoord v) {
+	return (sqrt(v[X] * v[X] + v[Y] * v[Y] + v[Z] * v[Z]));
+}
+
+
 int GzRender::GzBeginRender()
 {
 /* HW 3.7 
@@ -110,6 +245,85 @@ int GzRender::GzBeginRender()
 - init Ximage - put Xsp at base of stack, push on Xpi and Xiw 
 - now stack contains Xsw and app can push model Xforms when needed 
 */ 
+	// Init frame buffer ?
+	
+
+	// Build Xpi
+	float reciprocalD = tan(m_camera.FOV / 2.0); // 1 / d
+	GzMatrix Xpi = { {1, 0, 0, 0},
+		{0, 1, 0, 0},
+		{0, 0, reciprocalD, 0},
+		{0, 0, reciprocalD, 1} };
+
+	// Copy to camera Xpi
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			m_camera.Xpi[i][j] = Xpi[i][j];
+		}
+	}
+
+	//Build Xiw
+
+	// cl = l - c
+	GzCoord cl = { m_camera.lookat[X] - m_camera.position[X],
+	m_camera.lookat[Y] - m_camera.position[Y],
+	m_camera.lookat[Z] - m_camera.position[Z] };
+	float magCl = CalculateMag(cl);
+
+	// Get Z-Axis
+	// Z = cl / || cl ||
+	GzCoord zAxis = { cl[X] / magCl, cl[Y] / magCl, cl[Z] / magCl };
+
+	// Get Y-Axis
+	// up' = up - (up ¡¤ Z) * Z
+	// Y = up' / || up' ||
+	float upDotz = DotProduct(m_camera.worldup, zAxis);
+	GzCoord upPri = { m_camera.worldup[X] - (zAxis[X] * upDotz),
+	m_camera.worldup[Y] - (zAxis[Y] * upDotz),
+	m_camera.worldup[Z] - (zAxis[Z] * upDotz) };
+
+	float magUpPri = CalculateMag(upPri);
+	GzCoord yAxis = { upPri[X] / magUpPri, upPri[Y] / magUpPri, upPri[Z] / magUpPri };
+
+	// Get X-Axis (perpendicular to Y and Z)
+	float* xproduct = CrossProduct(yAxis, zAxis);
+	GzCoord xAxis = { xproduct[X], xproduct[Y], xproduct[Z] };
+
+	// Build Xiw
+	GzMatrix Xiw = { { xAxis[X], xAxis[Y], xAxis[Z], -DotProduct(xAxis, m_camera.position) },
+	{ yAxis[X], yAxis[Y], yAxis[Z], -DotProduct(yAxis, m_camera.position) }, 
+	{ zAxis[X], zAxis[Y], zAxis[Z], -DotProduct(zAxis, m_camera.position) },
+	{ 0, 0, 0, 1 } };
+
+	// Copy to m_camera Xiw
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			m_camera.Xiw[i][j] = Xiw[i][j];
+		}
+	}
+	
+	// Stack
+	// init Ximage - put Xsp at base of stack, push on Xpi and Xiw 
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			Ximage[0][i][j] = Xsp[i][j]; // put Xsp at base
+		}
+	}
+	
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			Ximage[1][i][j] = Xpi[i][j]; // push Xpi
+		}
+	}
+
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			Ximage[2][i][j] = Xiw[i][j]; // push Xiw
+		}
+	}
+
+	matlevel = 2;
+
 
 	return GZ_SUCCESS;
 }
@@ -119,8 +333,29 @@ int GzRender::GzPutCamera(GzCamera camera)
 /* HW 3.8 
 /*- overwrite renderer camera structure with new camera definition
 */
+	m_camera.position[X] = camera.position[X];
+	m_camera.position[Y] = camera.position[Y];
+	m_camera.position[Z] = camera.position[Z];
+
+	m_camera.lookat[X] = camera.lookat[X];
+	m_camera.lookat[Y] = camera.lookat[Y];
+	m_camera.lookat[Z] = camera.lookat[Z];
+
+	m_camera.worldup[X] = camera.worldup[X];
+	m_camera.worldup[Y] = camera.worldup[Y];
+	m_camera.worldup[Z] = camera.worldup[Z];
+
+	m_camera.FOV = camera.FOV;
 
 	return GZ_SUCCESS;	
+}
+
+float** MatrixMultiply(GzMatrix a, GzMatrix b) {
+
+	float** result = new float* [4];
+	float a = result[0][0];
+
+	return arr;
 }
 
 int GzRender::GzPushMatrix(GzMatrix	matrix)
@@ -129,6 +364,21 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 - push a matrix onto the Ximage stack
 - check for stack overflow
 */
+
+	if (matlevel < 0) { // empty stack, push a stack on top
+		matlevel++;
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				Ximage[matlevel][i][j] = matrix[i][j];
+			}
+		}
+		
+	}
+	else {
+
+	}
+
+
 	
 	return GZ_SUCCESS;
 }
