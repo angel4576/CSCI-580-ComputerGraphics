@@ -155,6 +155,7 @@ GzRender::GzRender(int xRes, int yRes)
 - setup Xsp and anything only done once 
 - init default camera 
 */ 
+	matlevel = -1;
 	// Setup Xsp
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
@@ -220,14 +221,17 @@ float DotProduct(GzCoord a, GzCoord b) {
 	return result;
 }
 
-float* CrossProduct(GzCoord a, GzCoord b) {
+float* CrossProduct(GzCoord a, GzCoord b/*, GzCoord res*/) {
 	float resultX = a[Y] * b[Z] - a[Z] * b[Y];
 	float resultY = a[Z] * b[X] - a[X] * b[Z];
 	float resultZ = a[X] * b[Y] - a[Y] * b[X];
 
-	GzCoord result = {resultX, resultY, resultZ};
+	GzCoord res = {resultX, resultY, resultZ};
+	/*res[0] = resultX;
+	res[1] = resultY;
+	res[2] = resultZ;*/
 
-	return result;
+	return res;
 }
 
 // Calculate magnitude of a vector
@@ -283,13 +287,15 @@ int GzRender::GzBeginRender()
 	m_camera.worldup[Z] - (zAxis[Z] * upDotz) };
 
 	float magUpPri = CalculateMag(upPri);
-	GzCoord yAxis = { upPri[X] / magUpPri, upPri[Y] / magUpPri, upPri[Z] / magUpPri };
+	GzCoord yAxis = { upPri[X] / magUpPri, upPri[Y] / magUpPri, upPri[Z] / magUpPri };	
 
 	// Get X-Axis (perpendicular to Y and Z)
-	float* xproduct = CrossProduct(yAxis, zAxis);
+	GzCoord res = {0, 0, 0};
+	float* xproduct = CrossProduct(yAxis, zAxis/*, res*/);
 	GzCoord xAxis = { xproduct[X], xproduct[Y], xproduct[Z] };
 
 	// Build Xiw
+	float xdp = -DotProduct(xAxis, m_camera.position);
 	GzMatrix Xiw = { { xAxis[X], xAxis[Y], xAxis[Z], -DotProduct(xAxis, m_camera.position) },
 	{ yAxis[X], yAxis[Y], yAxis[Z], -DotProduct(yAxis, m_camera.position) }, 
 	{ zAxis[X], zAxis[Y], zAxis[Z], -DotProduct(zAxis, m_camera.position) },
@@ -304,25 +310,28 @@ int GzRender::GzBeginRender()
 	
 	// Stack
 	// init Ximage - put Xsp at base of stack, push on Xpi and Xiw 
-	for (int i = 0; i < 4; i++) {
-		for (int j = 0; j < 4; j++) {
-			Ximage[0][i][j] = Xsp[i][j]; // put Xsp at base
-		}
-	}
-	
-	for (int i = 0; i < 4; i++) {
-		for (int j = 0; j < 4; j++) {
-			Ximage[1][i][j] = Xpi[i][j]; // push Xpi
-		}
-	}
+	//for (int i = 0; i < 4; i++) {
+	//	for (int j = 0; j < 4; j++) {
+	//		Ximage[0][i][j] = Xsp[i][j]; // put Xsp at base
+	//	}
+	//}
+	GzPushMatrix(Xsp);
+	GzPushMatrix(Xpi);
+	GzPushMatrix(Xiw);
 
-	for (int i = 0; i < 4; i++) {
-		for (int j = 0; j < 4; j++) {
-			Ximage[2][i][j] = Xiw[i][j]; // push Xiw
-		}
-	}
+	//for (int i = 0; i < 4; i++) {
+	//	for (int j = 0; j < 4; j++) {
+	//		Ximage[1][i][j] = Xpi[i][j]; // push Xpi
+	//	}
+	//}
 
-	matlevel = 2;
+	//for (int i = 0; i < 4; i++) {
+	//	for (int j = 0; j < 4; j++) {
+	//		Ximage[2][i][j] = Xiw[i][j]; // push Xiw
+	//	}
+	//}
+
+	//matlevel = 2;
 
 
 	return GZ_SUCCESS;
@@ -351,11 +360,26 @@ int GzRender::GzPutCamera(GzCamera camera)
 }
 
 float** MatrixMultiply(GzMatrix a, GzMatrix b) {
-
 	float** result = new float* [4];
-	float a = result[0][0];
+	for (int i = 0; i < 4; i++) {
+		result[i] = new float[4];
+	}
 
-	return arr;
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			result[i][j] = 0;
+		}
+	}
+
+	for (int i = 0; i < 4 /*numRowsA*/; i++) {
+		for (int j = 0; j < 4 /*numColB*/; j++) {
+			for (int k = 0; k < 4 /*numColA/numRowB*/; k++) {
+				result[i][j] += a[i][k] * b[k][j];
+			}
+		}
+	}
+
+	return result;
 }
 
 int GzRender::GzPushMatrix(GzMatrix	matrix)
@@ -365,21 +389,30 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 - check for stack overflow
 */
 
+	if (matlevel >= MATLEVELS) {
+		return GZ_FAILURE;
+	}
+
 	if (matlevel < 0) { // empty stack, push a stack on top
-		matlevel++;
 		for (int i = 0; i < 4; i++) {
 			for (int j = 0; j < 4; j++) {
-				Ximage[matlevel][i][j] = matrix[i][j];
+				Ximage[matlevel+1][i][j] = matrix[i][j];
 			}
 		}
 		
 	}
-	else {
-
+	else { // Multiply the top of stack by new matrix and push to stack
+		float** newMat = MatrixMultiply(Ximage[matlevel], matrix);
+		// push to stack
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				Ximage[matlevel+1][i][j] = newMat[i][j];
+			}
+		}
 	}
-
-
 	
+	matlevel++;
+
 	return GZ_SUCCESS;
 }
 
@@ -389,6 +422,11 @@ int GzRender::GzPopMatrix()
 - pop a matrix off the Ximage stack
 - check for stack underflow
 */
+	if (matlevel <= -1) { // -1 means empty
+		return GZ_FAILURE;
+	}
+
+	matlevel--;
 
 	return GZ_SUCCESS;
 }
@@ -526,19 +564,9 @@ float* Interpolate(float* cur, float* start, float* end, float deltaY, float* ne
 	float slopex = (end[0] - start[0]) / (end[1] - start[1]); // dx/dy
 	float slopez = (end[2] - start[2]) / (end[1] - start[1]); // dz/dy
 
-	// float deltaY = y - cur[1];
-	//float deltaY = ceil(start[1]) - start[1]; // ¦¤Y = ceil(V1(Y)) ¨C V1(Y) 
-	// float deltaY = ceil(cur[1]) - cur[1];
-
 	newCur[0] = cur[0] + slopex * deltaY; // X + SLOPEx * delta Y
 	newCur[1] = cur[1] + deltaY; // Y + delta Y
 	newCur[2] = cur[2] + slopez * deltaY; // Z + SLOPEz * delta Y
-
-	//float curx = cur[0] + slopex * deltaY; // X + SLOPEx * delta Y
-	//float cury = cur[1] + deltaY; // Y + delta Y
-	//float curz = cur[2] + slopez * deltaY; // Z + SLOPEz * delta Y
-
-	//GzCoord current = { curx, cury, curz };
 
 	return newCur;
 }
@@ -585,6 +613,28 @@ float CalculateLine(float* p1, float* p2, float y) {
 	return x;
 }
 
+// 4d vector muliply by 4d matrix
+float* VectorMultiplyMatrix(GzCoord v, GzMatrix mat, GzCoord newV) {
+	float v4d[4] = {v[X], v[Y], v[Z], 1};
+	float result4d[4] = { 0, 0, 0, 0 };
+
+	for (int i = 0; i < 4 /*numRowsMat*/; i++) {
+		for (int j = 0; j < 1 /*colsV*/; j++) { // only one col for vector
+			for (int k = 0; k < 4 /*numColsMat/rowsV*/; k++) {
+				result4d[k] += mat[i][k] * v4d[k];
+			}
+		}
+	}
+
+	// convert from 4d to 3d
+	float w = result4d[3];
+	newV[X] = result4d[X] / w;
+	newV[Y] = result4d[Y] / w;
+	newV[Z] = result4d[Z] / w;
+
+	return newV;
+}
+
 int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueList)
 /* numParts - how many names and values */
 {
@@ -592,6 +642,9 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 -- Pass in a triangle description with tokens and values corresponding to
       GZ_NULL_TOKEN:		do nothing - no values
       GZ_POSITION:		3 vert positions in model space
+
+-- Transform vertex coordinates using current TOS matrix in stack
+-- Cull - discard any triangle with verts behind view plane (z < 0)
 -- Invoke the rastrizer/scanline framework
 -- Return error code
 */
@@ -603,9 +656,18 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	}
 
 	// 3 vertices of tri
-	float* v1 = vertexListPtr[0]; // GzCoord (float Array) 
-	float* v2 = vertexListPtr[1];
-	float* v3 = vertexListPtr[2];
+	float* v1B = vertexListPtr[0]; // GzCoord (float Array) 
+	float* v2B = vertexListPtr[1];
+	float* v3B = vertexListPtr[2];
+
+	GzCoord nV1 = { 0, 0, 0 };
+	GzCoord nV2 = { 0, 0, 0 };
+	GzCoord nV3 = { 0, 0, 0 };
+
+	float* v1 = VectorMultiplyMatrix(v1B, Ximage[matlevel], nV1);
+	float* v2 = VectorMultiplyMatrix(v2B, Ximage[matlevel], nV2);
+	float* v3 = VectorMultiplyMatrix(v3B, Ximage[matlevel], nV3);
+
 
 	/*
 		Rasterization
