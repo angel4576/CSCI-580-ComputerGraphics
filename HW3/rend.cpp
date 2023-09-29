@@ -11,10 +11,10 @@
 
 int GzRender::GzRotXMat(float degree, GzMatrix mat)
 {
-/* HW 3.1
-// Create rotate matrix : rotate along x axis
-// Pass back the matrix using mat value
-*/
+	/* HW 3.1
+	// Create rotate matrix : rotate along x axis
+	// Pass back the matrix using mat value
+	*/
 	float radian = degree * PI / 180.0;
 	float sinValue = sin(radian);
 	float cosValue = cos(radian);
@@ -37,10 +37,10 @@ int GzRender::GzRotXMat(float degree, GzMatrix mat)
 
 int GzRender::GzRotYMat(float degree, GzMatrix mat)
 {
-/* HW 3.2
-// Create rotate matrix : rotate along y axis
-// Pass back the matrix using mat value
-*/
+	/* HW 3.2
+	// Create rotate matrix : rotate along y axis
+	// Pass back the matrix using mat value
+	*/
 	float radian = degree * PI / 180.0;
 	float sinValue = sin(radian);
 	float cosValue = cos(radian);
@@ -62,10 +62,10 @@ int GzRender::GzRotYMat(float degree, GzMatrix mat)
 
 int GzRender::GzRotZMat(float degree, GzMatrix mat)
 {
-/* HW 3.3
-// Create rotate matrix : rotate along z axis
-// Pass back the matrix using mat value
-*/
+	/* HW 3.3
+	// Create rotate matrix : rotate along z axis
+	// Pass back the matrix using mat value
+	*/
 	float radian = degree * PI / 180.0;
 	float sinValue = sin(radian);
 	float cosValue = cos(radian);
@@ -87,10 +87,10 @@ int GzRender::GzRotZMat(float degree, GzMatrix mat)
 
 int GzRender::GzTrxMat(GzCoord translate, GzMatrix mat)
 {
-/* HW 3.4
-// Create translation matrix
-// Pass back the matrix using mat value
-*/
+	/* HW 3.4
+	// Create translation matrix
+	// Pass back the matrix using mat value
+	*/
 	float x = translate[0];
 	float y = translate[1];
 	float z = translate[2];
@@ -113,10 +113,10 @@ int GzRender::GzTrxMat(GzCoord translate, GzMatrix mat)
 
 int GzRender::GzScaleMat(GzCoord scale, GzMatrix mat)
 {
-/* HW 3.5
-// Create scaling matrix
-// Pass back the matrix using mat value
-*/
+	/* HW 3.5
+	// Create scaling matrix
+	// Pass back the matrix using mat value
+	*/
 	float sx = scale[0];
 	float sy = scale[1];
 	float sz = scale[2];
@@ -139,27 +139,27 @@ int GzRender::GzScaleMat(GzCoord scale, GzMatrix mat)
 
 GzRender::GzRender(int xRes, int yRes)
 {
-/* HW1.1 create a framebuffer for MS Windows display:
- -- set display resolution
- -- allocate memory for framebuffer : 3 bytes(b, g, r) x width x height
- -- allocate memory for pixel buffer
- */
+	/* HW1.1 create a framebuffer for MS Windows display:
+	 -- set display resolution
+	 -- allocate memory for framebuffer : 3 bytes(b, g, r) x width x height
+	 -- allocate memory for pixel buffer
+	 */
 	xres = xRes;
 	yres = yRes;
 
-	framebuffer = (char*) malloc (3 * sizeof(char) * xRes * yRes);
+	framebuffer = (char*)malloc(3 * sizeof(char) * xRes * yRes);
 	// framebuffer = (char*)malloc(3 * xres * yres);
-	pixelbuffer = (GzPixel*) malloc (xres * yres * sizeof(GzPixel));
+	pixelbuffer = (GzPixel*)malloc(xres * yres * sizeof(GzPixel));
 
-/* HW 3.6
-- setup Xsp and anything only done once 
-- init default camera 
-*/ 
+	/* HW 3.6
+	- setup Xsp and anything only done once
+	- init default camera
+	*/
 	matlevel = -1;
 	// Setup Xsp
 	GzMatrix XspTemp = { {xres / 2.0, 0, 0, xres / 2.0},
-		{0, -yres / 2.0, 0, yres / 2.0}, 
-		{0, 0, MAXINT, 0}, 
+		{0, -yres / 2.0, 0, yres / 2.0},
+		{0, 0, MAXINT, 0},
 		{0, 0, 0, 1} };
 
 	for (int i = 0; i < 4; i++) {
@@ -189,7 +189,7 @@ GzRender::GzRender(int xRes, int yRes)
 
 GzRender::~GzRender()
 {
-/* HW1.2 clean up, free buffer memory */
+	/* HW1.2 clean up, free buffer memory */
 	free(framebuffer);
 	free(pixelbuffer);
 
@@ -197,7 +197,7 @@ GzRender::~GzRender()
 
 int GzRender::GzDefault()
 {
-/* HW1.3 set pixel buffer to some default values - start a new frame */
+	/* HW1.3 set pixel buffer to some default values - start a new frame */
 	GzPixel pixel = { 200, 200, 255, 1, MAXINT };
 
 	for (int i = 0; i < xres * yres; i++) {
@@ -221,7 +221,7 @@ float* CrossProduct(GzCoord a, GzCoord b/*, GzCoord res*/) {
 	float resultY = a[Z] * b[X] - a[X] * b[Z];
 	float resultZ = a[X] * b[Y] - a[Y] * b[X];
 
-	GzCoord res = {resultX, resultY, resultZ};
+	GzCoord res = { resultX, resultY, resultZ };
 	/*res[0] = resultX;
 	res[1] = resultY;
 	res[2] = resultZ;*/
@@ -238,17 +238,18 @@ float CalculateMag(GzCoord v) {
 
 int GzRender::GzBeginRender()
 {
-/* HW 3.7 
-- setup for start of each frame - init frame buffer color,alpha,z
-- compute Xiw and projection xform Xpi from camera definition 
-- init Ximage - put Xsp at base of stack, push on Xpi and Xiw 
-- now stack contains Xsw and app can push model Xforms when needed 
-*/ 
+	/* HW 3.7
+	- setup for start of each frame - init frame buffer color,alpha,z
+	- compute Xiw and projection xform Xpi from camera definition
+	- init Ximage - put Xsp at base of stack, push on Xpi and Xiw
+	- now stack contains Xsw and app can push model Xforms when needed
+	*/
 	// Init frame buffer ?
-	
+
 
 	// Build Xpi
-	float reciprocalD = tan(m_camera.FOV / 2.0); // 1 / d
+	float FOVRadians = m_camera.FOV * PI / 180.0;
+	float reciprocalD = tan(FOVRadians / 2.0); // 1 / d
 	GzMatrix Xpi = { {1, 0, 0, 0},
 		{0, 1, 0, 0},
 		{0, 0, reciprocalD, 0},
@@ -274,7 +275,7 @@ int GzRender::GzBeginRender()
 	GzCoord zAxis = { cl[X] / magCl, cl[Y] / magCl, cl[Z] / magCl };
 
 	// Get Y-Axis
-	// up' = up - (up ¡¤ Z) * Z
+	// up' = up - (up . Z) * Z
 	// Y = up' / || up' ||
 	float upDotz = DotProduct(m_camera.worldup, zAxis);
 	GzCoord zTemp = { zAxis[X] * upDotz, zAxis[Y] * upDotz, zAxis[Z] * upDotz };
@@ -283,17 +284,17 @@ int GzRender::GzBeginRender()
 	m_camera.worldup[Z] - zTemp[Z] };
 
 	float magUpPri = CalculateMag(upPri);
-	GzCoord yAxis = { upPri[X] / magUpPri, upPri[Y] / magUpPri, upPri[Z] / magUpPri };	
+	GzCoord yAxis = { upPri[X] / magUpPri, upPri[Y] / magUpPri, upPri[Z] / magUpPri };
 
 	// Get X-Axis (perpendicular to Y and Z)
-	GzCoord res = {0, 0, 0};
+	GzCoord res = { 0, 0, 0 };
 	float* xproduct = CrossProduct(yAxis, zAxis/*, res*/);
 	GzCoord xAxis = { xproduct[X], xproduct[Y], xproduct[Z] };
 
 	// Build Xiw
 	// float xdp = -DotProduct(xAxis, m_camera.position);
 	GzMatrix Xiw = { { xAxis[X], xAxis[Y], xAxis[Z], -DotProduct(xAxis, m_camera.position) },
-	{ yAxis[X], yAxis[Y], yAxis[Z], -DotProduct(yAxis, m_camera.position) }, 
+	{ yAxis[X], yAxis[Y], yAxis[Z], -DotProduct(yAxis, m_camera.position) },
 	{ zAxis[X], zAxis[Y], zAxis[Z], -DotProduct(zAxis, m_camera.position) },
 	{ 0, 0, 0, 1 } };
 
@@ -303,7 +304,7 @@ int GzRender::GzBeginRender()
 			m_camera.Xiw[i][j] = Xiw[i][j];
 		}
 	}
-	
+
 	// Stack
 	// init Ximage - put Xsp at base of stack, push on Xpi and Xiw 
 	//for (int i = 0; i < 4; i++) {
@@ -335,9 +336,9 @@ int GzRender::GzBeginRender()
 
 int GzRender::GzPutCamera(GzCamera camera)
 {
-/* HW 3.8 
-/*- overwrite renderer camera structure with new camera definition
-*/
+	/* HW 3.8
+	/*- overwrite renderer camera structure with new camera definition
+	*/
 	m_camera.position[X] = camera.position[X];
 	m_camera.position[Y] = camera.position[Y];
 	m_camera.position[Z] = camera.position[Z];
@@ -352,7 +353,7 @@ int GzRender::GzPutCamera(GzCamera camera)
 
 	m_camera.FOV = camera.FOV;
 
-	return GZ_SUCCESS;	
+	return GZ_SUCCESS;
 }
 
 float** MatrixMultiply(GzMatrix a, GzMatrix b) {
@@ -381,10 +382,10 @@ float** MatrixMultiply(GzMatrix a, GzMatrix b) {
 
 int GzRender::GzPushMatrix(GzMatrix	matrix)
 {
-/* HW 3.9 
-- push a matrix onto the Ximage stack
-- check for stack overflow
-*/
+	/* HW 3.9
+	- push a matrix onto the Ximage stack
+	- check for stack overflow
+	*/
 
 	if (matlevel >= MATLEVELS) {
 		return GZ_FAILURE;
@@ -393,21 +394,31 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 	if (matlevel < 0) { // empty stack, push a stack on top
 		for (int i = 0; i < 4; i++) {
 			for (int j = 0; j < 4; j++) {
-				Ximage[matlevel+1][i][j] = matrix[i][j];
+				Ximage[matlevel + 1][i][j] = matrix[i][j];
 			}
 		}
-		
+
 	}
 	else { // Multiply the top of stack by new matrix
-		float** newMat = MatrixMultiply(Ximage[matlevel], matrix);
+		// float** newMat = MatrixMultiply(Ximage[matlevel], matrix);
+		/*float newMat[4][4];*/
+		GzMatrix newMat; 
+		for (int i = 0; i < 4 /*numRowsA*/; i++) {
+			for (int j = 0; j < 4 /*numColB*/; j++) {
+				newMat[i][j] = 0.0f;
+				for (int k = 0; k < 4 /*numColA/numRowB*/; k++) {
+					newMat[i][j] += Ximage[matlevel][i][k] * matrix[k][j];
+				}
+			}
+		}
 		// push to stack
 		for (int i = 0; i < 4; i++) {
 			for (int j = 0; j < 4; j++) {
-				Ximage[matlevel+1][i][j] = newMat[i][j];
+				Ximage[matlevel + 1][i][j] = newMat[i][j];
 			}
 		}
 	}
-	
+
 	matlevel++;
 
 	return GZ_SUCCESS;
@@ -415,10 +426,10 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 
 int GzRender::GzPopMatrix()
 {
-/* HW 3.10
-- pop a matrix off the Ximage stack
-- check for stack underflow
-*/
+	/* HW 3.10
+	- pop a matrix off the Ximage stack
+	- check for stack underflow
+	*/
 	if (matlevel <= -1) { // -1 means empty
 		return GZ_FAILURE;
 	}
@@ -441,9 +452,9 @@ GzIntensity Clamp(GzIntensity color) {
 
 int GzRender::GzPut(int i, int j, GzIntensity r, GzIntensity g, GzIntensity b, GzIntensity a, GzDepth z)
 {
-/* HW1.4 write pixel values into the buffer */
-	
-// Clamp color
+	/* HW1.4 write pixel values into the buffer */
+
+	// Clamp color
 	r = Clamp(r);
 	g = Clamp(g);
 	b = Clamp(b);
@@ -466,9 +477,9 @@ int GzRender::GzPut(int i, int j, GzIntensity r, GzIntensity g, GzIntensity b, G
 }
 
 
-int GzRender::GzGet(int i, int j, GzIntensity *r, GzIntensity *g, GzIntensity *b, GzIntensity *a, GzDepth *z)
+int GzRender::GzGet(int i, int j, GzIntensity* r, GzIntensity* g, GzIntensity* b, GzIntensity* a, GzDepth* z)
 {
-/* HW1.5 retrieve a pixel information from the pixel buffer */
+	/* HW1.5 retrieve a pixel information from the pixel buffer */
 
 	int index = ARRAY(i, j);
 	*r = pixelbuffer[index].red;
@@ -483,8 +494,8 @@ int GzRender::GzGet(int i, int j, GzIntensity *r, GzIntensity *g, GzIntensity *b
 
 int GzRender::GzFlushDisplay2File(FILE* outfile)
 {
-/* HW1.6 write image to ppm file -- "P6 %d %d 255\r" */
-	
+	/* HW1.6 write image to ppm file -- "P6 %d %d 255\r" */
+
 	int result = fprintf(outfile, "P6 %d %d 255\r", xres, yres);
 	for (int i = 0; i < xres * yres; i++) {
 		fwrite(&pixelbuffer[i].red, 1, 1, outfile);// red
@@ -498,11 +509,11 @@ int GzRender::GzFlushDisplay2File(FILE* outfile)
 
 int GzRender::GzFlushDisplay2FrameBuffer()
 {
-/* HW1.7 write pixels to framebuffer: 
-	- put the pixels into the frame buffer
-	- CAUTION: when storing the pixels into the frame buffer, the order is blue, green, and red 
-	- NOT red, green, and blue !!!
-*/
+	/* HW1.7 write pixels to framebuffer:
+		- put the pixels into the frame buffer
+		- CAUTION: when storing the pixels into the frame buffer, the order is blue, green, and red
+		- NOT red, green, and blue !!!
+	*/
 
 	int j = 0;
 	for (int i = 0; i < xres * yres; i++) {
@@ -521,12 +532,12 @@ int GzRender::GzFlushDisplay2FrameBuffer()
 /***********************************************/
 /* HW2 methods: implement from here */
 
-int GzRender::GzPutAttribute(int numAttributes, GzToken	*nameList, GzPointer *valueList) 
+int GzRender::GzPutAttribute(int numAttributes, GzToken* nameList, GzPointer* valueList)
 {
-/* HW 2.1
--- Set renderer attribute states (e.g.: GZ_RGB_COLOR default color)
--- In later homeworks set shaders, interpolaters, texture maps, and lights
-*/
+	/* HW 2.1
+	-- Set renderer attribute states (e.g.: GZ_RGB_COLOR default color)
+	-- In later homeworks set shaders, interpolaters, texture maps, and lights
+	*/
 	GzColor* colorPtr;
 	for (int i = 0; i < numAttributes; i++) {
 		if (nameList[i] == GZ_RGB_COLOR) {
@@ -545,12 +556,12 @@ int GzRender::GzPutAttribute(int numAttributes, GzToken	*nameList, GzPointer *va
 float* SpanLine(float* cur, float* left, float* right, float deltaX) {
 	float slopez = (right[2] - left[2]) / (right[0] - left[0]); // dz/dx 
 
-	// float deltaX = ceil(left[0]) - left[0]; // ¦¤X = ceil(LX) - LX
-	// float deltaX = ceil(cur[0]) - cur[0]; // ¦¤X = ceil(LX) - LX
+	// float deltaX = ceil(left[0]) - left[0]; // ï¿½ï¿½X = ceil(LX) - LX
+	// float deltaX = ceil(cur[0]) - cur[0]; // ï¿½ï¿½X = ceil(LX) - LX
 
-	float curx = cur[0] + deltaX; // LX + ¦¤X
+	float curx = cur[0] + deltaX; // LX + ï¿½ï¿½X
 	float cury = cur[1];
-	float curz = cur[2] + deltaX * slopez; // LZ + ¦¤X * slopez
+	float curz = cur[2] + deltaX * slopez; // LZ + ï¿½ï¿½X * slopez
 
 	GzCoord spanCur = { curx, cury, curz };
 
@@ -606,7 +617,7 @@ boolean ZBuffering(float* cur, short xres, short yres, GzPixel* pixelbuffer, int
 
 // 4d vector muliply by 4d matrix
 float* VectorMultiplyMatrix(GzCoord v, GzMatrix mat, GzCoord newV) {
-	float v4d[4] = {v[X], v[Y], v[Z], 1};
+	float v4d[4] = { v[X], v[Y], v[Z], 1 };
 	float result4d[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	for (int i = 0; i < 4 /*numRowsMat*/; i++) {
@@ -626,19 +637,19 @@ float* VectorMultiplyMatrix(GzCoord v, GzMatrix mat, GzCoord newV) {
 	return newV;
 }
 
-int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueList)
+int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueList)
 /* numParts - how many names and values */
 {
-/* HW 2.2
--- Pass in a triangle description with tokens and values corresponding to
-      GZ_NULL_TOKEN:		do nothing - no values
-      GZ_POSITION:		3 vert positions in model space
+	/* HW 2.2
+	-- Pass in a triangle description with tokens and values corresponding to
+		  GZ_NULL_TOKEN:		do nothing - no values
+		  GZ_POSITION:		3 vert positions in model space
 
--- Transform vertex coordinates using current TOS matrix in stack
--- Cull - discard any triangle with verts behind view plane (z < 0)
--- Invoke the rastrizer/scanline framework
--- Return error code
-*/
+	-- Transform vertex coordinates using current TOS matrix in stack
+	-- Cull - discard any triangle with verts behind view plane (z < 0)
+	-- Invoke the rastrizer/scanline framework
+	-- Return error code
+	*/
 	GzCoord* vertexListPtr; // GzCoord Pointer
 	for (int i = 0; i < numParts; i++) {
 		if (nameList[i] == GZ_POSITION) {
@@ -779,7 +790,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 
 	//}
 
-	float dy = ceil(top[1]) - top[1]; // ¦¤Y = ceil(V1(Y)) ¨C V1(Y) 
+	float dy = ceil(top[1]) - top[1]; // ï¿½ï¿½Y = ceil(V1(Y)) ï¿½C V1(Y) 
 
 	for (int y = ceil(top[1]); y < ceil(mid[1]); y++) {
 
@@ -798,7 +809,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 
 		/* Span from left to right */
 		float* spanCur = left;
-		float dx = ceil(left[0]) - left[0]; // ¦¤X = ceil(LX) - LX
+		float dx = ceil(left[0]) - left[0]; // ï¿½ï¿½X = ceil(LX) - LX
 
 		for (int x = ceil(left[0]); x < ceil(right[0]); x++) {
 			spanCur = SpanLine(spanCur, left, right, dx);
@@ -875,4 +886,3 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 
 	return GZ_SUCCESS;
 }
-

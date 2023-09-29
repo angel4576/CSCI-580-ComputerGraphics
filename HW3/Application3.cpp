@@ -18,6 +18,7 @@ static char THIS_FILE[]=__FILE__;
 #define new DEBUG_NEW
 #endif
 
+// #define INFILE3  "tri.asc"
 #define INFILE3  "pot4.asc"
 #define OUTFILE3 "output.ppm"
 
@@ -89,7 +90,7 @@ GzMatrix	rotateY =
 	m_pFrameBuffer = m_pRender->framebuffer;
 
 
-#if 1 	/* set up app-defined camera if desired, else use camera defaults */
+#if 0 	/* set up app-defined camera if desired, else use camera defaults */
 	camera.position[X] = 13.2;      
   	camera.position[Y] = -8.7;
   	camera.position[Z] = -14.8;
