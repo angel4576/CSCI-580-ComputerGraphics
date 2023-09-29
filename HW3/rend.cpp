@@ -15,7 +15,7 @@ int GzRender::GzRotXMat(float degree, GzMatrix mat)
 // Create rotate matrix : rotate along x axis
 // Pass back the matrix using mat value
 */
-	float radian = degree * 2 * PI / 360.0;
+	float radian = degree * PI / 180.0;
 	float sinValue = sin(radian);
 	float cosValue = cos(radian);
 
@@ -41,7 +41,7 @@ int GzRender::GzRotYMat(float degree, GzMatrix mat)
 // Create rotate matrix : rotate along y axis
 // Pass back the matrix using mat value
 */
-	float radian = degree * 2 * PI / 360.0;
+	float radian = degree * PI / 180.0;
 	float sinValue = sin(radian);
 	float cosValue = cos(radian);
 
@@ -66,7 +66,7 @@ int GzRender::GzRotZMat(float degree, GzMatrix mat)
 // Create rotate matrix : rotate along z axis
 // Pass back the matrix using mat value
 */
-	float radian = degree * 2 * PI / 360.0;
+	float radian = degree * PI / 180.0;
 	float sinValue = sin(radian);
 	float cosValue = cos(radian);
 
@@ -157,21 +157,16 @@ GzRender::GzRender(int xRes, int yRes)
 */ 
 	matlevel = -1;
 	// Setup Xsp
+	GzMatrix XspTemp = { {xres / 2.0, 0, 0, xres / 2.0},
+		{0, -yres / 2.0, 0, yres / 2.0}, 
+		{0, 0, MAXINT, 0}, 
+		{0, 0, 0, 1} };
+
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
-			Xsp[i][j] = 0;
+			Xsp[i][j] = XspTemp[i][j];
 		}
 	}
-
-	Xsp[0][0] = xres / 2;
-	Xsp[0][3] = xres / 2;
-	
-	Xsp[1][1] = -yres / 2;
-	Xsp[1][3] = yres / 2;
-
-	Xsp[2][2] = MAXINT;
-	Xsp[3][3] = 1;
-
 
 	// Init default camera
 	m_camera.position[X] = DEFAULT_IM_X;
@@ -282,9 +277,10 @@ int GzRender::GzBeginRender()
 	// up' = up - (up ¡¤ Z) * Z
 	// Y = up' / || up' ||
 	float upDotz = DotProduct(m_camera.worldup, zAxis);
-	GzCoord upPri = { m_camera.worldup[X] - (zAxis[X] * upDotz),
-	m_camera.worldup[Y] - (zAxis[Y] * upDotz),
-	m_camera.worldup[Z] - (zAxis[Z] * upDotz) };
+	GzCoord zTemp = { zAxis[X] * upDotz, zAxis[Y] * upDotz, zAxis[Z] * upDotz };
+	GzCoord upPri = { m_camera.worldup[X] - zTemp[X],
+	m_camera.worldup[Y] - zTemp[Y],
+	m_camera.worldup[Z] - zTemp[Z] };
 
 	float magUpPri = CalculateMag(upPri);
 	GzCoord yAxis = { upPri[X] / magUpPri, upPri[Y] / magUpPri, upPri[Z] / magUpPri };	
@@ -295,7 +291,7 @@ int GzRender::GzBeginRender()
 	GzCoord xAxis = { xproduct[X], xproduct[Y], xproduct[Z] };
 
 	// Build Xiw
-	float xdp = -DotProduct(xAxis, m_camera.position);
+	// float xdp = -DotProduct(xAxis, m_camera.position);
 	GzMatrix Xiw = { { xAxis[X], xAxis[Y], xAxis[Z], -DotProduct(xAxis, m_camera.position) },
 	{ yAxis[X], yAxis[Y], yAxis[Z], -DotProduct(yAxis, m_camera.position) }, 
 	{ zAxis[X], zAxis[Y], zAxis[Z], -DotProduct(zAxis, m_camera.position) },
@@ -365,14 +361,15 @@ float** MatrixMultiply(GzMatrix a, GzMatrix b) {
 		result[i] = new float[4];
 	}
 
-	for (int i = 0; i < 4; i++) {
+	/*for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
-			result[i][j] = 0;
+			result[i][j] = 0.0f;
 		}
-	}
+	}*/
 
 	for (int i = 0; i < 4 /*numRowsA*/; i++) {
 		for (int j = 0; j < 4 /*numColB*/; j++) {
+			result[i][j] = 0.0f;
 			for (int k = 0; k < 4 /*numColA/numRowB*/; k++) {
 				result[i][j] += a[i][k] * b[k][j];
 			}
@@ -401,7 +398,7 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 		}
 		
 	}
-	else { // Multiply the top of stack by new matrix and push to stack
+	else { // Multiply the top of stack by new matrix
 		float** newMat = MatrixMultiply(Ximage[matlevel], matrix);
 		// push to stack
 		for (int i = 0; i < 4; i++) {
@@ -606,24 +603,18 @@ boolean ZBuffering(float* cur, short xres, short yres, GzPixel* pixelbuffer, int
 	return false;
 }
 
-float CalculateLine(float* p1, float* p2, float y) {
-	float slope = (p2[1] - p1[1]) / (p2[0] - p1[0]);
-
-	float x = (y - p1[1]) / slope + p1[0];
-	return x;
-}
 
 // 4d vector muliply by 4d matrix
 float* VectorMultiplyMatrix(GzCoord v, GzMatrix mat, GzCoord newV) {
 	float v4d[4] = {v[X], v[Y], v[Z], 1};
-	float result4d[4] = { 0, 0, 0, 0 };
+	float result4d[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	for (int i = 0; i < 4 /*numRowsMat*/; i++) {
-		for (int j = 0; j < 1 /*colsV*/; j++) { // only one col for vector
-			for (int k = 0; k < 4 /*numColsMat/rowsV*/; k++) {
-				result4d[k] += mat[i][k] * v4d[k];
-			}
+		//for (int j = 0; j < 1 /*colsV*/; j++) { // only one col for vector
+		for (int k = 0; k < 4 /*numColsMat/rowsV*/; k++) {
+			result4d[i] += mat[i][k] * v4d[k];
 		}
+		//}
 	}
 
 	// convert from 4d to 3d
@@ -660,9 +651,9 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float* v2B = vertexListPtr[1];
 	float* v3B = vertexListPtr[2];
 
-	GzCoord nV1 = { 0, 0, 0 };
-	GzCoord nV2 = { 0, 0, 0 };
-	GzCoord nV3 = { 0, 0, 0 };
+	GzCoord nV1 = { 0.0f, 0.0f, 0.0f };
+	GzCoord nV2 = { 0.0f, 0.0f, 0.0f };
+	GzCoord nV3 = { 0.0f, 0.0f, 0.0f };
 
 	float* v1 = VectorMultiplyMatrix(v1B, Ximage[matlevel], nV1);
 	float* v2 = VectorMultiplyMatrix(v2B, Ximage[matlevel], nV2);
