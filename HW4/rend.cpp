@@ -509,17 +509,55 @@ int GzRender::GzPutAttribute(int numAttributes, GzToken	*nameList, GzPointer *va
 -- Set renderer attribute states (e.g.: GZ_RGB_COLOR default color)
 -- In later homeworks set shaders, interpolaters, texture maps, and lights
 */
-	GzColor* colorPtr;
+
 	for (int i = 0; i < numAttributes; i++) {
 		if (nameList[i] == GZ_RGB_COLOR) {
-			colorPtr = (GzColor*)valueList[i];
+			GzColor* colorPtr = (GzColor*) valueList[i];
+			flatcolor[0] = (*colorPtr)[0];
+			flatcolor[1] = (*colorPtr)[1];
+			flatcolor[2] = (*colorPtr)[2];
 		}
+		// Lighting attributes
+		else if (nameList[i] == GZ_DIRECTIONAL_LIGHT) { // directional light
+			GzLight* lightPtr = (GzLight*) valueList[i];
+			lights[i] = *lightPtr;
+		}
+		else if (nameList[i] == GZ_AMBIENT_LIGHT) {
+			GzLight* ambientPtr = (GzLight*) valueList[i];
+			ambientlight = *ambientPtr;
+		}
+		// Shading attributes
+		else if (nameList[i] == GZ_DIFFUSE_COEFFICIENT) {
+			GzColor* KdPtr = (GzColor*) valueList[i];
+			Kd[0] = (*KdPtr)[0];
+			Kd[1] = (*KdPtr)[1];
+			Kd[2] = (*KdPtr)[2];
+		}
+		else if (nameList[i] == GZ_INTERPOLATE) {
+			int* interpModePtr = (int*) valueList[i];
+			interp_mode = *interpModePtr;
+		}
+		else if (nameList[i] == GZ_AMBIENT_COEFFICIENT) {
+			GzColor* KaPtr = (GzColor*) valueList[i];
+			Ka[0] = (*KaPtr)[0];
+			Ka[1] = (*KaPtr)[1];
+			Ka[2] = (*KaPtr)[2];
+		}
+		else if (nameList[i] == GZ_SPECULAR_COEFFICIENT) {
+			GzColor* KsPtr = (GzColor*) valueList[i];
+			Ks[0] = (*KsPtr)[0];
+			Ks[1] = (*KsPtr)[1];
+			Ks[2] = (*KsPtr)[2];
+		}
+		else if (nameList[i] == GZ_DISTRIBUTION_COEFFICIENT) {
+			float* specPtr = (float*) valueList[i];
+			spec = *specPtr;
+		}
+		
 		
 	}
 
-	flatcolor[0] = (*colorPtr)[0];
-	flatcolor[1] = (*colorPtr)[1];
-	flatcolor[2] = (*colorPtr)[2];
+	
 
 	return GZ_SUCCESS;
 }
