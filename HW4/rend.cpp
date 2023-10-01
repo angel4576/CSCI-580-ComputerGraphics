@@ -512,13 +512,14 @@ int GzRender::GzPutAttribute(int numAttributes, GzToken	*nameList, GzPointer *va
 
 	for (int i = 0; i < numAttributes; i++) {
 		if (nameList[i] == GZ_RGB_COLOR) {
-			GzColor* colorPtr = (GzColor*) valueList[i];
+			/*GzColor* colorPtr = (GzColor*) valueList[i];
 			flatcolor[0] = (*colorPtr)[0];
 			flatcolor[1] = (*colorPtr)[1];
-			flatcolor[2] = (*colorPtr)[2];
+			flatcolor[2] = (*colorPtr)[2];*/
 		}
 		// Lighting attributes
 		else if (nameList[i] == GZ_DIRECTIONAL_LIGHT) { // directional light
+			numlights = numAttributes;
 			GzLight* lightPtr = (GzLight*) valueList[i];
 			lights[i] = *lightPtr;
 		}
@@ -641,6 +642,63 @@ float* VectorMultiplyMatrix(GzCoord v, GzMatrix mat, GzCoord newV) {
 	return newV;
 }
 
+/*
+	C = (Ks SigmaL[le(R·E)^s]) + (Kd SigmaL[le(N·L)]) + (Ka la)
+*/
+float* ShadingEquation(GzLight* lights, GzColor Ka, GzColor Kd, GzColor Ks,
+	GzLight ambientLight, float spec, GzCoord norm, int numLights, GzColor resultColor) {
+	// R = 2(N·L)N - L
+	GzCoord Rs[3];
+	for (int i = 0; i < numLights; i++) {
+		float twoNDotL = DotProduct(norm, lights[i].direction) * 2; // max ?
+
+		Rs[i][X] = norm[X] * twoNDotL - lights[i].direction[X];
+		Rs[i][Y] = norm[Y] * twoNDotL - lights[i].direction[Y];
+		Rs[i][Z] = norm[Z] * twoNDotL - lights[i].direction[Z];
+	}
+
+	GzCoord E = { 0.0f, 0.0f - 1.0f };
+
+	// Specular
+	GzColor totalSpec = { 0.0f, 0.0f, 0.0f };
+	for (int i = 0; i < numLights; i++) {
+		float rDotE = max(0, DotProduct(Rs[i], E));
+		float powRDotE = pow(rDotE, spec);
+
+		totalSpec[0] += lights[i].color[0] * powRDotE;
+		totalSpec[1] += lights[i].color[1] * powRDotE;
+		totalSpec[2] += lights[i].color[2] * powRDotE;
+	}
+
+	GzColor specMag = { Ks[0] * totalSpec[0], Ks[1] * totalSpec[1], Ks[2] * totalSpec[2] };
+
+	// Diffuse
+	GzColor totalDiff = { 0.0f, 0.0f, 0.0f };
+	for (int i = 0; i < numLights; i++) {
+		float nDotL = DotProduct(norm, lights[i].direction);
+		nDotL = max(0, nDotL);
+
+		totalDiff[0] += lights[i].color[0] * nDotL;
+		totalDiff[1] += lights[i].color[1] * nDotL;
+		totalDiff[2] += lights[i].color[2] * nDotL;
+	}
+
+	GzColor diffMag = { Kd[0] * totalDiff[0], Kd[1] * totalDiff[1], Kd[2] * totalDiff[2] };
+
+	// Ambient
+	GzColor ambMag = { Ka[0] * ambientLight.color[0], Ka[1] * ambientLight.color[1], Ka[2] * ambientLight.color[2] };
+
+	GzColor finalColor = { specMag[0] + diffMag[0] + ambMag[0],
+						  specMag[1] + diffMag[1] + ambMag[1],
+						  specMag[2] + diffMag[2] + ambMag[2] };
+
+	resultColor[0] = specMag[0] + diffMag[0] + ambMag[0];
+	resultColor[1] = specMag[1] + diffMag[1] + ambMag[1];
+	resultColor[2] = specMag[2] + diffMag[2] + ambMag[2];
+
+	return resultColor;
+}
+
 int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueList)
 /* numParts - how many names and values */
 {
@@ -650,11 +708,19 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
       GZ_POSITION:		3 vert positions in model space
 -- Invoke the rastrizer/scanline framework
 -- Return error code
+
+	Hw4
+--	Get Normal
 */
-	GzCoord* vertexListPtr; // GzCoord Pointer
+	
+	GzCoord* vertexListPtr;
+	GzCoord* normalListPtr; 
 	for (int i = 0; i < numParts; i++) {
 		if (nameList[i] == GZ_POSITION) {
-			vertexListPtr = (GzCoord*)valueList[i];
+			vertexListPtr = (GzCoord*) valueList[i];
+		}
+		else if (nameList[i] == GZ_NORMAL) {
+			normalListPtr = (GzCoord*) valueList[i];
 		}
 	}
 
@@ -663,6 +729,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float* v2B = vertexListPtr[1];
 	float* v3B = vertexListPtr[2];
 
+	// Copy (C++ problem)
 	GzCoord nV1 = { 0.0f, 0.0f, 0.0f };
 	GzCoord nV2 = { 0.0f, 0.0f, 0.0f };
 	GzCoord nV3 = { 0.0f, 0.0f, 0.0f };
@@ -671,14 +738,38 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float* v2 = VectorMultiplyMatrix(v2B, Ximage[matlevel], nV2);
 	float* v3 = VectorMultiplyMatrix(v3B, Ximage[matlevel], nV3);
 
+	// Normal for every vertex of tri 
+	float* norm1 = normalListPtr[0];
+	float* norm2 = normalListPtr[1];
+	float* norm3 = normalListPtr[2];
+
+	/*
+		Shading 
+		Calculating Color
+	*/
+
+	GzCoord c1 = { 0.0f, 0.0f, 0.0f };
+	GzCoord c2 = { 0.0f, 0.0f, 0.0f };
+	GzCoord c3 = { 0.0f, 0.0f, 0.0f };  
+
+	float* nColor1 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm1, numlights, c1);
+	float* nColor2 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm2, numlights, c2);
+	float* nColor3 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm3, numlights, c3);
+
+	
+	//flatcolor[0] = nColor[0];
+	//flatcolor[1] = nColor[1];
+	//flatcolor[2] = nColor[2];
 
 	/*
 		Rasterization
 		Scan Line
 	*/
 
-	// Set up top, middle, bottom vertex
-	// Sort by y
+	/*
+		Set up top, middle, bottom vertex
+		Sort by y
+	*/
 	GzCoord top, mid, bottom;
 	if (v1[1] <= v2[1] && v1[1] <= v3[1]) { // v1 is the top
 		top[0] = v1[0];
@@ -768,35 +859,18 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	}
 
 
-	// dy = 0.1f;
 	GzCoord leftCur = { 0, 0, 0 };
 	GzCoord rightCur = { 0, 0, 0 };
-
 
 	// Initial Left/Right
 	float* left = top;
 	float* right = top;
-
-	//if (ceil(top[1]) == ceil(mid[1])) {
-
-	//	if (SortEdges(top, mid, bottom) == 1) { // counter-clockwise
-	//		left = mid;
-	//		right = top;
-	//	}
-	//	else
-	//	{
-	//		left = top;
-	//		right = mid;
-	//	}
-
-	//}
 
 	float dy = ceil(top[1]) - top[1]; // ��Y = ceil(V1(Y)) �C V1(Y) 
 
 	for (int y = ceil(top[1]); y < ceil(mid[1]); y++) {
 
 		/* Differentiate Left and Right edges */
-		//if (ceil(top[1]) != ceil(mid[1])) {
 		if (SortEdges(top, mid, bottom) == 1) { // mid at the left of top (top-mid-btm counter-clockwise)
 			left = Interpolate(left, top, mid, dy, leftCur);
 			right = Interpolate(right, top, bottom, dy, rightCur);
@@ -805,7 +879,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			left = Interpolate(left, top, bottom, dy, leftCur);
 			right = Interpolate(right, top, mid, dy, rightCur);
 		}
-		//}
 
 
 		/* Span from left to right */
