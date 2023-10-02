@@ -883,7 +883,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 
 		/* Span from left to right */
 		float* spanCur = left;
-		float dx = ceil(left[0]) - left[0]; // ��X = ceil(LX) - LX
+		float dx = ceil(left[0]) - left[0]; // dX = ceil(LX) - LX
 
 		for (int x = ceil(left[0]); x < ceil(right[0]); x++) {
 			spanCur = SpanLine(spanCur, left, right, dx);
