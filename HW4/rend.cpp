@@ -563,16 +563,19 @@ int GzRender::GzPutAttribute(int numAttributes, GzToken	*nameList, GzPointer *va
 	return GZ_SUCCESS;
 }
 
-float* SpanLine(float* cur, float* left, float* right, float deltaX) {
+float* SpanLine(float* cur, float* left, float* right, float deltaX, float* result) {
 	float slopez = (right[2] - left[2]) / (right[0] - left[0]); // dz/dx 
 
-	float curx = cur[0] + deltaX; // LX + ��X
-	float cury = cur[1];
-	float curz = cur[2] + deltaX * slopez; // LZ + ��X * slopez
+	//float curx = cur[0] + deltaX; // LX + dX
+	//float cury = cur[1];
+	//float curz = cur[2] + deltaX * slopez; // LZ + dX * slopez
 
-	GzCoord spanCur = { curx, cury, curz };
+	// GzCoord spanCur = { curx, cury, curz };
+	result[0] = cur[0] + deltaX; // LX + dX
+	result[1] = cur[1];
+	result[2] = cur[2] + deltaX * slopez; // LZ + dX * slopez
 
-	return spanCur;
+	return result;
 }
 
 float* Interpolate(float* cur, float* start, float* end, float deltaY, float* newCur) {
@@ -748,15 +751,14 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		Calculating Color
 	*/
 
-	GzCoord c1 = { 0.0f, 0.0f, 0.0f };
-	GzCoord c2 = { 0.0f, 0.0f, 0.0f };
-	GzCoord c3 = { 0.0f, 0.0f, 0.0f };  
+	GzColor nColor1 = { 0.0f, 0.0f, 0.0f };
+	GzColor nColor2 = { 0.0f, 0.0f, 0.0f };
+	GzColor nColor3 = { 0.0f, 0.0f, 0.0f };
 
-	float* nColor1 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm1, numlights, c1);
-	float* nColor2 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm2, numlights, c2);
-	float* nColor3 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm3, numlights, c3);
+	float* c1 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm1, numlights, nColor1);
+	float* c2 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm2, numlights, nColor2);
+	float* c3 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm3, numlights, nColor3);
 
-	
 	//flatcolor[0] = nColor[0];
 	//flatcolor[1] = nColor[1];
 	//flatcolor[2] = nColor[2];
@@ -771,10 +773,16 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		Sort by y
 	*/
 	GzCoord top, mid, bottom;
+	GzColor topC, midC, bottomC;
 	if (v1[1] <= v2[1] && v1[1] <= v3[1]) { // v1 is the top
 		top[0] = v1[0];
 		top[1] = v1[1];
 		top[2] = v1[2];
+		
+		// Top Color
+		topC[0] = c1[0];
+		topC[1] = c1[1];
+		topC[2] = c1[2];
 
 		if (v2[1] <= v3[1]) {
 			// v2 is the mid
@@ -782,10 +790,18 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			mid[1] = v2[1];
 			mid[2] = v2[2];
 
+			midC[0] = c2[0];
+			midC[1] = c2[1];
+			midC[2] = c2[2];
+
 			//v3 is the bottom
 			bottom[0] = v3[0];
 			bottom[1] = v3[1];
 			bottom[2] = v3[2];
+
+			bottomC[0] = c3[0];
+			bottomC[1] = c3[1];
+			bottomC[2] = c3[2];
 		}
 		else {
 			// v3 is the mid
@@ -793,10 +809,18 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			mid[1] = v3[1];
 			mid[2] = v3[2];
 
+			midC[0] = c3[0];
+			midC[1] = c3[1];
+			midC[2] = c3[2];
+
 			// v2 is the bottom
 			bottom[0] = v2[0];
 			bottom[1] = v2[1];
 			bottom[2] = v2[2];
+
+			bottomC[0] = c2[0];
+			bottomC[1] = c2[1];
+			bottomC[2] = c2[2];
 		}
 
 	}
@@ -805,16 +829,28 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		top[1] = v2[1];
 		top[2] = v2[2];
 
+		topC[0] = c2[0];
+		topC[1] = c2[1];
+		topC[2] = c2[2];
+
 		if (v1[1] <= v3[1]) {
 			// v1 is mid
 			mid[0] = v1[0];
 			mid[1] = v1[1];
 			mid[2] = v1[2];
 
+			midC[0] = c1[0];
+			midC[1] = c1[1];
+			midC[2] = c1[2];
+
 			// v3 is bottom
 			bottom[0] = v3[0];
 			bottom[1] = v3[1];
 			bottom[2] = v3[2];
+
+			bottomC[0] = c3[0];
+			bottomC[1] = c3[1];
+			bottomC[2] = c3[2];
 		}
 		else {
 			// v3 is mid
@@ -822,10 +858,18 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			mid[1] = v3[1];
 			mid[2] = v3[2];
 
+			midC[0] = c3[0];
+			midC[1] = c3[1];
+			midC[2] = c3[2];
+
 			// v1 is bottom
 			bottom[0] = v1[0];
 			bottom[1] = v1[1];
 			bottom[2] = v1[2];
+
+			bottomC[0] = c1[0];
+			bottomC[1] = c1[1];
+			bottomC[2] = c1[2];
 		}
 
 	}
@@ -834,16 +878,28 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		top[1] = v3[1];
 		top[2] = v3[2];
 
+		topC[0] = c3[0];
+		topC[1] = c3[1];
+		topC[2] = c3[2];
+
 		if (v1[1] <= v2[1]) {
 			// v1 is mid
 			mid[0] = v1[0];
 			mid[1] = v1[1];
 			mid[2] = v1[2];
 
+			midC[0] = c1[0];
+			midC[1] = c1[1];
+			midC[2] = c1[2];
+
 			// v2 is bottom
 			bottom[0] = v2[0];
 			bottom[1] = v2[1];
 			bottom[2] = v2[2];
+
+			bottomC[0] = c2[0];
+			bottomC[1] = c2[1];
+			bottomC[2] = c2[2];
 		}
 		else {
 			// v2 is mid
@@ -851,22 +907,38 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			mid[1] = v2[1];
 			mid[2] = v2[2];
 
+			midC[0] = c2[0];
+			midC[1] = c2[1];
+			midC[2] = c2[2];
+
 			// v1 is bottom
 			bottom[0] = v1[0];
 			bottom[1] = v1[1];
 			bottom[2] = v1[2];
+
+			bottomC[0] = c1[0];
+			bottomC[1] = c1[1];
+			bottomC[2] = c1[2];
 		}
 	}
 
-
-	GzCoord leftCur = { 0, 0, 0 };
-	GzCoord rightCur = { 0, 0, 0 };
 
 	// Initial Left/Right
 	float* left = top;
 	float* right = top;
 
-	float dy = ceil(top[1]) - top[1]; // ��Y = ceil(V1(Y)) �C V1(Y) 
+	// Initial Color
+	float* leftC = topC;
+	float* rightC = topC;
+
+	float dy = ceil(top[1]) - top[1]; // dY = ceil(V1(Y)) - V1(Y) 
+	float dyC = 0.001f;
+
+	GzCoord leftCur = { 0.0f, 0.0f, 0.0f };
+	GzCoord rightCur = { 0.0f, 0.0f, 0.0f };
+
+	GzColor leftColor = { 0.0f, 0.0f, 0.0f };
+	GzColor rightColor = { 0.0f, 0.0f, 0.0f };
 
 	for (int y = ceil(top[1]); y < ceil(mid[1]); y++) {
 
@@ -874,26 +946,45 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		if (SortEdges(top, mid, bottom) == 1) { // mid at the left of top (top-mid-btm counter-clockwise)
 			left = Interpolate(left, top, mid, dy, leftCur);
 			right = Interpolate(right, top, bottom, dy, rightCur);
+
+			// Interpolate Color
+			leftC = Interpolate(leftC, topC, midC, dyC, leftColor);
+			rightC = Interpolate(rightC, topC, bottomC, dyC, rightColor);
+
 		}
 		else if (SortEdges(top, mid, bottom) == 0) { // (top-mid-btm clockwise)
 			left = Interpolate(left, top, bottom, dy, leftCur);
 			right = Interpolate(right, top, mid, dy, rightCur);
+
+			// Interpolate Color
+			leftC = Interpolate(leftC, topC, bottomC, dyC, leftColor);
+			rightC = Interpolate(rightC, topC, midC, dyC, rightColor);
 		}
 
 
 		/* Span from left to right */
 		float* spanCur = left;
+		float* spanColor = leftC;
+
+		GzCoord spanCurVer = { 0.0f, 0.0f, 0.0f };
+		GzColor spanCurColor = { 0.0f, 0.0f, 0.0f };
+
 		float dx = ceil(left[0]) - left[0]; // dX = ceil(LX) - LX
+		float dxC = 0.001f;
 
 		for (int x = ceil(left[0]); x < ceil(right[0]); x++) {
-			spanCur = SpanLine(spanCur, left, right, dx);
+			// Calculate current vertex on spanline
+			spanCur = SpanLine(spanCur, left, right, dx, spanCurVer);
 
-			GzCoord copy = { spanCur[0], spanCur[1], spanCur[2] };
+			// Calculate color on current pixel
+			spanColor = SpanLine(spanColor, leftC, rightC, dxC, spanCurColor);
+
+			// GzCoord copy = { spanCur[0], spanCur[1], spanCur[2] };
 			if (ZBuffering(spanCur, xres, yres, pixelbuffer, ARRAY(spanCur[0], spanCur[1]))) {
-				GzPut((int)spanCur[0], (int)spanCur[1], ctoi(flatcolor[0]), ctoi(flatcolor[1]),
-					ctoi(flatcolor[2]), 1, (GzDepth)spanCur[2]);
+				GzPut((int)spanCur[0], (int)spanCur[1], ctoi(spanColor[0]), ctoi(spanColor[1]),
+					ctoi(spanColor[2]), 1, (GzDepth)spanCur[2]);
 			}
-			spanCur = copy;
+			// spanCur = copy; // c++ problem (reset spanCur to prevent unexpected change)
 
 			dx = 1;
 		}
@@ -907,48 +998,66 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	*/
 
 	if (SortEdges(top, mid, bottom) == 1) { // counter-clockwise
-		//if (left[0] >= mid[0]) {
 		right = Interpolate(right, top, bottom, mid[1] - left[1], rightCur);
 		left = mid;
-
-		//}
+		
+		// Color
+		rightC = Interpolate(rightC, topC, bottomC, midC[1] - leftC[1], rightColor);
+		leftC = midC;
 	}
 	else {
-		//if (right[0] <= mid[0]) {
 		left = Interpolate(left, top, bottom, mid[1] - right[1], leftCur);
 		right = mid;
-		//}
+		
+		// Color
+		leftC = Interpolate(leftC, topC, bottomC, midC[1] - rightC[1], leftColor);
+		rightC = midC;
 	}
 
 	dy = ceil(mid[1]) - mid[1];
 	for (int y = ceil(left[1]); y < ceil(bottom[1]); y++) {
 
-		//		if (ceil(top[1]) != ceil(mid[1])) {
 		// Differentiate Left and Right edges
 		if (SortEdges(top, mid, bottom) == 1) {
 			left = Interpolate(left, mid, bottom, dy, leftCur);
 			right = Interpolate(right, top, bottom, dy, rightCur);
+
+			// Interpolate Color
+			leftC = Interpolate(leftC, midC, bottomC, dyC, leftColor);
+			rightC = Interpolate(rightC, topC, bottomC, dyC, rightColor);
 		}
 		else if (SortEdges(top, mid, bottom) == 0) {
 			left = Interpolate(left, top, bottom, dy, leftCur);
 			right = Interpolate(right, mid, bottom, dy, rightCur);
+
+			// Interpolate Color
+			leftC = Interpolate(leftC, topC, bottomC, dyC, leftColor);
+			rightC = Interpolate(rightC, midC, bottomC, dyC, rightColor);
 		}
-		//		}
 
 
 		float* spanCur = left;
+		float* spanColor = leftC;
+
+		GzCoord spanCurVer = { 0.0f, 0.0f, 0.0f };
+		GzColor spanCurColor = { 0.0f, 0.0f, 0.0f };
+
 		float dx = ceil(left[0]) - left[0];
+		float dxC = 0.001f;
 
 		for (int x = ceil(left[0]); x < ceil(right[0]); x++) {
-			spanCur = SpanLine(spanCur, left, right, dx);
-			GzCoord copy = { spanCur[0], spanCur[1], spanCur[2] };
+			spanCur = SpanLine(spanCur, left, right, dx, spanCurVer);
+			
+			spanColor = SpanLine(spanColor, leftC, rightC, dxC, spanCurColor);
+
+			// GzCoord copy = { spanCur[0], spanCur[1], spanCur[2] };
 
 			if (ZBuffering(spanCur, xres, yres, pixelbuffer, ARRAY(spanCur[0], spanCur[1]))) {
-				GzPut((int)spanCur[0], (int)spanCur[1], ctoi(flatcolor[0]),
-					ctoi(flatcolor[1]), ctoi(flatcolor[2]), 1, (GzDepth)spanCur[2]);
+				GzPut((int)spanCur[0], (int)spanCur[1], ctoi(spanColor[0]),
+					ctoi(spanColor[1]), ctoi(spanColor[2]), 1, (GzDepth)spanCur[2]);
 			}
 
-			spanCur = copy;
+			// spanCur = copy;
 
 			dx = 1;
 		}
