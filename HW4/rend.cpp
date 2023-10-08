@@ -193,7 +193,8 @@ GzRender::~GzRender()
 int GzRender::GzDefault()
 {
 /* HW1.3 set pixel buffer to some default values - start a new frame */
-	GzPixel pixel = { 200, 200, 255, 1, MAXINT };
+	 GzPixel pixel = { 200, 200, 255, 1, MAXINT };
+	// GzPixel pixel = { 0, 0, 0, 1, MAXINT };
 
 	for (int i = 0; i < xres * yres; i++) {
 		pixelbuffer[i] = pixel;
@@ -228,6 +229,15 @@ float* CrossProduct(GzCoord a, GzCoord b/*, GzCoord res*/) {
 // sqrt(x^2 + y^2 + z^2)
 float CalculateMag(GzCoord v) {
 	return (sqrt(v[X] * v[X] + v[Y] * v[Y] + v[Z] * v[Z]));
+}
+
+float* Normalize(float* vector, float* ans) {
+	float mag = CalculateMag(vector);
+	ans[0] = vector[0] / mag;
+	ans[1] = vector[1] / mag;
+	ans[2] = vector[2] / mag;
+
+	return ans;
 }
 
 int GzRender::GzBeginRender()
@@ -368,6 +378,22 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 							 {0, 0, 1, 0}, 
 							 {0, 0, 0, 1} };
 
+	GzMatrix unitaryMat = { {1, 0, 0, 0},
+							{0, 1, 0, 0},
+							{0, 0, 1, 0},
+							{0, 0, 0, 1} };
+	// Scale factor K = (a^2 + b^2 + c^2)^1/2 
+	for (int i = 0; i < 3; i++) {
+		/*float K = sqrt(matrix[i][0] * matrix[i][0] + matrix[i][1] * matrix[i][1]
+			+ matrix[i][2] * matrix[i][2] + matrix[i][3] * matrix[i][3]);*/
+		float K = sqrt(matrix[i][0] * matrix[i][0] + matrix[i][1] * matrix[i][1]
+			+ matrix[i][2] * matrix[i][2]);
+		for (int j = 0; j < 3; j++) {
+			unitaryMat[i][j] = matrix[i][j] / K;
+		}
+	}
+
+
 	if (matlevel < 0) { // empty stack, push a stack on top
 		for (int i = 0; i < 4; i++) {
 			for (int j = 0; j < 4; j++) {
@@ -379,7 +405,6 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 	}
 	else { // Multiply the top of stack by new matrix
 		// float** newMat = MatrixMultiply(Ximage[matlevel], matrix);
-		/*float newMat[4][4];*/
 		GzMatrix imageNewMat;
 		GzMatrix normNewMat;
 		for (int i = 0; i < 4 /*numRowsA*/; i++) {
@@ -389,11 +414,11 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 				for (int k = 0; k < 4 /*numColA/numRowB*/; k++) {
 					imageNewMat[i][j] += Ximage[matlevel][i][k] * matrix[k][j];
 					// Xnorm 
-					if (matlevel < 2 || matlevel == 3) { // skip Xsp, Xpi, scaling
+					if (matlevel + 1 < 2 || matlevel + 1 == 3) { // skip Xsp, Xpi, scaling
 						normNewMat[i][j] += Xnorm[matlevel][i][k] * identityMat[k][j];
 					}
-					else {
-						normNewMat[i][j] += Xnorm[matlevel][i][k] * matrix[k][j];
+					else { 
+						normNewMat[i][j] += Xnorm[matlevel][i][k] * unitaryMat[k][j];
 					}
 				}
 			}
@@ -528,10 +553,10 @@ int GzRender::GzPutAttribute(int numAttributes, GzToken	*nameList, GzPointer *va
 
 	for (int i = 0; i < numAttributes; i++) {
 		if (nameList[i] == GZ_RGB_COLOR) {
-			/*GzColor* colorPtr = (GzColor*) valueList[i];
+			GzColor* colorPtr = (GzColor*) valueList[i];
 			flatcolor[0] = (*colorPtr)[0];
 			flatcolor[1] = (*colorPtr)[1];
-			flatcolor[2] = (*colorPtr)[2];*/
+			flatcolor[2] = (*colorPtr)[2];
 		}
 		// Lighting attributes
 		else if (nameList[i] == GZ_DIRECTIONAL_LIGHT) { // directional light
@@ -574,17 +599,11 @@ int GzRender::GzPutAttribute(int numAttributes, GzToken	*nameList, GzPointer *va
 		
 	}
 
-	
-
 	return GZ_SUCCESS;
 }
 
 float* SpanLine(float* cur, float* left, float* right, float deltaX, float* result) {
 	float slopez = (right[2] - left[2]) / (right[0] - left[0]); // dz/dx 
-
-	//float curx = cur[0] + deltaX; // LX + dX
-	//float cury = cur[1];
-	//float curz = cur[2] + deltaX * slopez; // LZ + dX * slopez
 
 	// GzCoord spanCur = { curx, cury, curz };
 	result[0] = cur[0] + deltaX; // LX + dX
@@ -676,12 +695,18 @@ float* ShadingEquation(GzLight* lights, GzColor Ka, GzColor Kd, GzColor Ks,
 		Rs[i][Z] = norm[Z] * twoNDotL - lights[i].direction[Z];
 	}
 
-	GzCoord E = { 0.0f, 0.0f - 1.0f };
+	GzCoord E = { 0.0f, 0.0f, -1.0f };
+
 
 	// Specular
 	GzColor totalSpec = { 0.0f, 0.0f, 0.0f };
 	for (int i = 0; i < numLights; i++) {
-		float rDotE = max(0, DotProduct(Rs[i], E));
+		float rDotE = DotProduct(Rs[i], E);
+		if (rDotE < 0)
+			rDotE = 0;
+		else if (rDotE > 1)
+			rDotE = 1;
+
 		float powRDotE = pow(rDotE, spec);
 
 		totalSpec[0] += lights[i].color[0] * powRDotE;
@@ -695,11 +720,29 @@ float* ShadingEquation(GzLight* lights, GzColor Ka, GzColor Kd, GzColor Ks,
 	GzColor totalDiff = { 0.0f, 0.0f, 0.0f };
 	for (int i = 0; i < numLights; i++) {
 		float nDotL = DotProduct(norm, lights[i].direction);
-		nDotL = max(0, nDotL);
+		// nDotL = max(0, nDotL);
 
-		totalDiff[0] += lights[i].color[0] * nDotL;
-		totalDiff[1] += lights[i].color[1] * nDotL;
-		totalDiff[2] += lights[i].color[2] * nDotL;
+		// Orientation
+		// Sign of N·L and N·E
+		float nDotE = DotProduct(norm, lights[i].direction);
+		if (nDotL > 0 && nDotE > 0) { // both positive
+			totalDiff[0] += lights[i].color[0] * nDotL;
+			totalDiff[1] += lights[i].color[1] * nDotL;
+			totalDiff[2] += lights[i].color[2] * nDotL;
+		}
+		else if (nDotL < 0 && nDotE < 0) { // both negative
+			// flip normal
+			GzCoord negNorm = { -norm[0], -norm[1], -norm[2] };
+			float negNDotL = DotProduct(negNorm, lights[i].direction);
+
+			totalDiff[0] += lights[i].color[0] * negNDotL;
+			totalDiff[1] += lights[i].color[1] * negNDotL;
+			totalDiff[2] += lights[i].color[2] * negNDotL;
+		}
+		else if (nDotL * nDotE < 0) { // different signs
+			continue;
+		}
+		
 	}
 
 	GzColor diffMag = { Kd[0] * totalDiff[0], Kd[1] * totalDiff[1], Kd[2] * totalDiff[2] };
@@ -740,7 +783,6 @@ float* InterpolateColor(float* normR, float* normG, float* normB,
 	// Normal[0/1/2] = (A, B, C)
 	// Plan equation: Ax + By + Cz = D
 	// z = (D - Ax - By) / C
-	// float z = (D - norm[0] * px - norm[1] * py) / norm[2]; // Color element (RGB)
 	float zR = (DR - normR[0] * px - normR[1] * py) / normR[2];
 	float zG = (DG - normG[0] * px - normG[1] * py) / normG[2];
 	float zB = (DB - normB[0] * px - normB[1] * py) / normB[2];
@@ -750,6 +792,11 @@ float* InterpolateColor(float* normR, float* normG, float* normB,
 	resultColor[2] = zB;
 
 	return resultColor;
+
+}
+
+float* InterpolateNormal(float* normR, float* normG, float* normB,
+	float DR, float DG, float DB, int px, int py, float* resultColor) {
 
 }
 
@@ -794,11 +841,26 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float* v3 = VectorMultiplyMatrix(v3m, Ximage[matlevel], nV3);
 
 	// Normal for every vertex of tri 
-	float* norm1 = normalListPtr[0];
-	float* norm2 = normalListPtr[1];
-	float* norm3 = normalListPtr[2];
+	float* norm1m = normalListPtr[0];
+	float* norm2m = normalListPtr[1];
+	float* norm3m = normalListPtr[2];
 
-	// Transform normal?
+	/*float* norm1 = normalListPtr[0];
+	float* norm2 = normalListPtr[1];
+	float* norm3 = normalListPtr[2];*/
+
+	// Transform normal??
+	GzCoord nN1 = { 0.0f, 0.0f, 0.0f };
+	GzCoord nN2 = { 0.0f, 0.0f, 0.0f };
+	GzCoord nN3 = { 0.0f, 0.0f, 0.0f };
+
+	float* norm1 = VectorMultiplyMatrix(norm1m, Xnorm[matlevel], nN1);
+	float* norm2 = VectorMultiplyMatrix(norm2m, Xnorm[matlevel], nN2);
+	float* norm3 = VectorMultiplyMatrix(norm3m, Xnorm[matlevel], nN3);
+
+	/*norm1 = Normalize(norm1, nN1);
+	norm2 = Normalize(norm2, nN2);
+	norm3 = Normalize(norm3, nN3);*/
 
 	/*
 		Shading 
@@ -867,7 +929,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			bottom[0] = v3[0];
 			bottom[1] = v3[1];
 			bottom[2] = v3[2];
-
 		}
 		else {
 			// v3 is the mid
@@ -879,7 +940,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			bottom[0] = v2[0];
 			bottom[1] = v2[1];
 			bottom[2] = v2[2];
-
 		}
 
 	}
@@ -951,7 +1011,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float* left = top;
 	float* right = top;
 
-
 	float dy = ceil(top[1]) - top[1]; // dY = ceil(V1(Y)) - V1(Y) 
 
 	GzCoord leftCur = { 0.0f, 0.0f, 0.0f };
@@ -1007,7 +1066,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	else {
 		left = Interpolate(left, top, bottom, mid[1] - right[1], leftCur);
 		right = mid;
-		
 	}
 
 	dy = ceil(mid[1]) - mid[1];
