@@ -795,10 +795,7 @@ float* InterpolateColor(float* normR, float* normG, float* normB,
 
 }
 
-float* InterpolateNormal(float* normR, float* normG, float* normB,
-	float DR, float DG, float DB, int px, int py, float* resultColor) {
 
-}
 
 int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueList)
 /* numParts - how many names and values */
@@ -845,11 +842,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float* norm2m = normalListPtr[1];
 	float* norm3m = normalListPtr[2];
 
-	/*float* norm1 = normalListPtr[0];
-	float* norm2 = normalListPtr[1];
-	float* norm3 = normalListPtr[2];*/
-
-	// Transform normal??
+	// Transform normal
 	GzCoord nN1 = { 0.0f, 0.0f, 0.0f };
 	GzCoord nN2 = { 0.0f, 0.0f, 0.0f };
 	GzCoord nN3 = { 0.0f, 0.0f, 0.0f };
@@ -858,15 +851,16 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float* norm2 = VectorMultiplyMatrix(norm2m, Xnorm[matlevel], nN2);
 	float* norm3 = VectorMultiplyMatrix(norm3m, Xnorm[matlevel], nN3);
 
-	/*norm1 = Normalize(norm1, nN1);
-	norm2 = Normalize(norm2, nN2);
-	norm3 = Normalize(norm3, nN3);*/
-
 	/*
 		Shading 
 		Calculating Color
 	*/
-
+	
+	/*
+		Gouraud shading
+		GZ_COLOR
+	*/
+	// if (intep_mode == GZ_COLOR)
 	GzColor nColor1 = { 0.0f, 0.0f, 0.0f };
 	GzColor nColor2 = { 0.0f, 0.0f, 0.0f };
 	GzColor nColor3 = { 0.0f, 0.0f, 0.0f };
@@ -875,16 +869,12 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float* c2 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm2, numlights, nColor2);
 	float* c3 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm3, numlights, nColor3);
 
-	//flatcolor[0] = nColor[0];
-	//flatcolor[1] = nColor[1];
-	//flatcolor[2] = nColor[2];
-
 	// Red
 	GzCoord v1R = { v1[X], v1[Y], c1[0] };
 	GzCoord v2R = { v2[X], v2[Y], c2[0] };
 	GzCoord v3R = { v3[X], v3[Y], c3[0] };
 
-	GzCoord nR = { 0.0f, 0.0f, 0.0f }; // plane normal
+	GzCoord nR = { 0.0f, 0.0f, 0.0f }; // plane normal (A B C)
 	float DR = PlanEquation(v1R, v2R, v3R, nR);
 
 	// Green
@@ -903,6 +893,31 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	GzCoord nB = { 0.0f, 0.0f, 0.0f };
 	float DB = PlanEquation(v1B, v2B, v3B, nB);
 
+	/*
+		Phong shading
+		GZ_NORMALS
+	*/
+	// if (intep_mode == GZ_NORMALS)
+	GzCoord v1Nx1 = { v1[X], v1[Y], norm1[X] };
+	GzCoord v2Nx2 = { v2[X], v2[Y], norm2[X] };
+	GzCoord v3Nx3 = { v3[X], v3[Y], norm3[X] };
+
+	GzCoord nNx = { 0.0f, 0.0f, 0.0f };
+	float Dx = PlanEquation(v1Nx1, v2Nx2, v3Nx3, nNx);
+
+	GzCoord v1Ny1 = { v1[X], v1[Y], norm1[Y] };
+	GzCoord v2Ny2 = { v2[X], v2[Y], norm2[Y] };
+	GzCoord v3Ny3 = { v3[X], v3[Y], norm3[Y] };
+
+	GzCoord nNy = { 0.0f, 0.0f, 0.0f };
+	float Dy = PlanEquation(v1Ny1, v2Ny2, v3Ny3, nNy);
+
+	GzCoord v1Nz1 = { v1[X], v1[Y], norm1[Z] };
+	GzCoord v2Nz2 = { v2[X], v2[Y], norm2[Z] };
+	GzCoord v3Nz3 = { v3[X], v3[Y], norm3[Z] };
+
+	GzCoord nNz = { 0.0f, 0.0f, 0.0f };
+	float Dz = PlanEquation(v1Nz1, v2Nz2, v3Nz3, nNz);
 
 	/*
 		Rasterization
@@ -1028,7 +1043,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			right = Interpolate(right, top, mid, dy, rightCur);
 		}
 
-
 		/* Span from left to right */
 		float* spanCur = left;
 
@@ -1041,7 +1055,18 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			spanCur = SpanLine(spanCur, left, right, dx, spanCurVer);
 
 			GzColor resColor = { 0.0f, 0.0f, 0.0f };
-			InterpolateColor(nR, nG, nB, DR, DG, DB, spanCur[0], spanCur[1], resColor);
+			GzColor resNorm = { 0.0f, 0.0f, 0.0f };
+			// Gouraud shading
+			if (interp_mode == GZ_COLOR) {
+				InterpolateColor(nR, nG, nB, DR, DG, DB, spanCur[0], spanCur[1], resColor);
+			}
+			else if (interp_mode == GZ_NORMALS) {
+				InterpolateColor(nNx, nNy, nNz, Dx, Dy, Dz, spanCur[0], spanCur[1], resNorm);
+				// Interpolate Color based on normals on each pixel
+				ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, resNorm, numlights, resColor);
+			}
+
+			// InterpolateColor(nR, nG, nB, DR, DG, DB, spanCur[0], spanCur[1], resColor);
 
 			if (ZBuffering(spanCur, xres, yres, pixelbuffer, ARRAY(spanCur[0], spanCur[1]))) {
 				GzPut((int)spanCur[0], (int)spanCur[1], ctoi(resColor[0]), ctoi(resColor[1]),
@@ -1081,7 +1106,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			right = Interpolate(right, mid, bottom, dy, rightCur);
 		}
 
-
 		float* spanCur = left;
 
 		GzCoord spanCurVer = { 0.0f, 0.0f, 0.0f };
@@ -1092,7 +1116,17 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			spanCur = SpanLine(spanCur, left, right, dx, spanCurVer);
 
 			GzColor resColor = { 0.0f, 0.0f, 0.0f };
-			InterpolateColor(nR, nG, nB, DR, DG, DB, spanCur[0], spanCur[1], resColor);
+			GzColor resNorm = { 0.0f, 0.0f, 0.0f };
+			// Gouraud shading
+			if (interp_mode == GZ_COLOR) {
+				InterpolateColor(nR, nG, nB, DR, DG, DB, spanCur[0], spanCur[1], resColor);
+			}
+			// Phong shading
+			else if (interp_mode == GZ_NORMALS) {
+				InterpolateColor(nNx, nNy, nNz, Dx, Dy, Dz, spanCur[0], spanCur[1], resNorm);
+				// Interpolate Color based on normals on each pixel
+				ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, resNorm, numlights, resColor);
+			}
 
 			if (ZBuffering(spanCur, xres, yres, pixelbuffer, ARRAY(spanCur[0], spanCur[1]))) {
 				GzPut((int)spanCur[0], (int)spanCur[1], ctoi(resColor[0]),
