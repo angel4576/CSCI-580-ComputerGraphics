@@ -292,7 +292,7 @@ int GzRender::GzBeginRender()
 	float* xproduct = CrossProduct(yAxis, zAxis/*, res*/);
 	GzCoord xAxis = { xproduct[X], xproduct[Y], xproduct[Z] };
 
-	// Build Xiw
+	// Build Xiwi
 	// float xdp = -DotProduct(xAxis, m_camera.position);
 	GzMatrix Xiw = { { xAxis[X], xAxis[Y], xAxis[Z], -DotProduct(xAxis, m_camera.position) },
 	{ yAxis[X], yAxis[Y], yAxis[Z], -DotProduct(yAxis, m_camera.position) },
