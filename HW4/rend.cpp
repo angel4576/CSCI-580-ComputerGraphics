@@ -708,6 +708,12 @@ float* ShadingEquation(GzLight* lights, GzColor Ka, GzColor Kd, GzColor Ks,
 
 		float powRDotE = pow(rDotE, spec);
 
+		/*float nDotL = DotProduct(norm, lights[i].direction);
+		float nDotE = DotProduct(norm, lights[i].direction);*/
+
+		/*if (nDotL * nDotE < 0) {
+
+		}*/
 		totalSpec[0] += lights[i].color[0] * powRDotE;
 		totalSpec[1] += lights[i].color[1] * powRDotE;
 		totalSpec[2] += lights[i].color[2] * powRDotE;
@@ -723,7 +729,7 @@ float* ShadingEquation(GzLight* lights, GzColor Ka, GzColor Kd, GzColor Ks,
 
 		// Orientation
 		// Sign of N·L and N·E
-		float nDotE = DotProduct(norm, lights[i].direction);
+		float nDotE = DotProduct(norm, E);
 		if (nDotL > 0 && nDotE > 0) { // both positive
 			totalDiff[0] += lights[i].color[0] * nDotL;
 			totalDiff[1] += lights[i].color[1] * nDotL;
@@ -738,7 +744,7 @@ float* ShadingEquation(GzLight* lights, GzColor Ka, GzColor Kd, GzColor Ks,
 			totalDiff[1] += lights[i].color[1] * negNDotL;
 			totalDiff[2] += lights[i].color[2] * negNDotL;
 		}
-		else if (nDotL * nDotE < 0) { // different signs
+		else if (nDotL * nDotE < 0) { // different signs -> skip calculation
 			continue;
 		}
 		
