@@ -86,6 +86,35 @@ int tex_fun(float u, float v, GzColor color)
 /* Procedural texture function */
 int ptex_fun(float u, float v, GzColor color)
 {
+    /*
+        if odd interval -> white
+        else if even interval -> black
+    */
+
+    // bound check u, v
+    if (u < 0 || u >= 1 || v < 0 || v >= 1) {
+        return GZ_FAILURE;
+    }
+   
+    float totalInterval = 6; 
+    float oneInterval = 1 / totalInterval;
+
+    float numIntvlU = u / oneInterval; // how many intervals between 0 - u/v
+    float numIntvlV = v / oneInterval;
+
+    int uI = ceil(numIntvlU);
+    int vI = ceil(numIntvlV);
+
+    if ((uI % 2 == 0 && vI % 2 == 0) || (uI % 2 != 0 && vI % 2 != 0)) { // even or odd at the same time
+        for (int i = 0; i < 3; i++) {
+            color[i] = 100;
+        }
+    }
+    else if ((uI % 2 == 0 && vI % 2 != 0) || (uI % 2 != 0 && vI % 2 == 0)) { // one is even the other is odd
+        for (int i = 0; i < 3; i++) {
+            color[i] = 0;
+        }
+    }
 
 	return GZ_SUCCESS;
 }
