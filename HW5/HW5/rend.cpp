@@ -825,6 +825,8 @@ float* InterpolateUV(float* norm1, float* norm2, float D1, float D2,
 	return result;
 }
 
+
+
 int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueList)
 /* numParts - how many names and values */
 {
@@ -888,6 +890,26 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float* uv1 = uvListPtr[0];
 	float* uv2 = uvListPtr[1];
 	float* uv3 = uvListPtr[2];
+
+	/*
+		Perspective correction for uv
+	*/ 
+	// V'z = Vzs / (Zmax - Vzs) 
+	// Vzs: screen space Z
+	float Vpz1 = v1[Z] / (MAXINT - v1[Z]);
+	// Transform to perspective space 
+	// Ps = P / (V'z + 1) 
+	float u1P = uv1[U] / (Vpz1 + 1);
+	float v1P = uv1[V] / (Vpz1 + 1);
+
+	float Vpz2 = v2[Z] / (MAXINT - v2[Z]);
+	float u2P = uv2[U] / (Vpz2 + 1);
+	float v2P = uv2[V] / (Vpz2 + 1);
+
+	float Vpz3 = v3[Z] / (MAXINT - v3[Z]);
+	float u3P = uv3[U] / (Vpz3 + 1);
+	float v3P = uv3[V] / (Vpz3 + 1);
+
 
 	GzColor txColorV1 = { 0.0f, 0.0f, 0.0f };
 	tex_fun(uv1[U], uv1[V], txColorV1);
@@ -981,22 +1003,38 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		same as interpolating colors/normals
 	*/
 
+	//// U
+	//GzCoord v1U = { v1[X], v1[Y], uv1[U] };
+	//GzCoord v2U = { v2[X], v2[Y], uv2[U] };
+	//GzCoord v3U = { v3[X], v3[Y], uv3[U] };
+
+	//GzCoord nU = { 0.0f, 0.0f, 0.0f };
+	//float DU = PlaneEquation(v1U, v2U, v3U, nU);
+
+	//// V
+	//GzCoord v1V = { v1[X], v1[Y], uv1[V] };
+	//GzCoord v2V = { v2[X], v2[Y], uv2[V] };
+	//GzCoord v3V = { v3[X], v3[Y], uv3[V] };
+
+	//GzCoord nV = { 0.0f, 0.0f, 0.0f };
+	//float DV = PlaneEquation(v1V, v2V, v3V, nV);
+
+	/* Interpolate in perspective space */
 	// U
-	GzCoord v1U = { v1[X], v1[Y], uv1[U] };
-	GzCoord v2U = { v2[X], v2[Y], uv2[U] };
-	GzCoord v3U = { v3[X], v3[Y], uv3[U] };
+	GzCoord v1U = { v1[X], v1[Y], u1P };
+	GzCoord v2U = { v2[X], v2[Y], u2P };
+	GzCoord v3U = { v3[X], v3[Y], u3P };
 
 	GzCoord nU = { 0.0f, 0.0f, 0.0f };
 	float DU = PlaneEquation(v1U, v2U, v3U, nU);
 
 	// V
-	GzCoord v1V = { v1[X], v1[Y], uv1[V] };
-	GzCoord v2V = { v2[X], v2[Y], uv2[V] };
-	GzCoord v3V = { v3[X], v3[Y], uv3[V] };
+	GzCoord v1V = { v1[X], v1[Y], v1P };
+	GzCoord v2V = { v2[X], v2[Y], v2P };
+	GzCoord v3V = { v3[X], v3[Y], v3P };
 
 	GzCoord nV = { 0.0f, 0.0f, 0.0f };
 	float DV = PlaneEquation(v1V, v2V, v3V, nV);
-
 
 	/*
 		Rasterization
@@ -1149,7 +1187,16 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 				InterpolateColor(nNx, nNy, nNz, Dx, Dy, Dz, spanCur[0], spanCur[1], resNorm);
 				Normalize(resNorm, resNorm);
 
+				// Perspective correction
+				// Interpolate uv in perspective space
 				InterpolateUV(nU, nV, DU, DV, spanCur[0], spanCur[1], resUV);
+
+				// Transform interpolated parameters back to affine space after interpolation	
+				// P = Ps (V'z + 1) 
+				float vpz = spanCur[Z] / (MAXINT - spanCur[Z]);
+				resUV[U] = resUV[U] * (vpz + 1);
+				resUV[V] = resUV[V] * (vpz + 1);
+
 				tex_fun(resUV[U], resUV[V], resColor);
 
 				// Interpolate Color based on normals on each pixel
@@ -1217,6 +1264,12 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 				Normalize(resNorm, resNorm);
 
 				InterpolateUV(nU, nV, DU, DV, spanCur[0], spanCur[1], resUV);
+				
+				// Transform back to image space
+				float vpz = spanCur[Z] / (MAXINT - spanCur[Z]);
+				resUV[U] = resUV[U] * (vpz + 1);
+				resUV[V] = resUV[V] * (vpz + 1);
+				
 				tex_fun(resUV[U], resUV[V], resColor);
 
 				// Interpolate Color based on normals on each pixel
