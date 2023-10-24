@@ -106,9 +106,12 @@ int ptex_fun(float u, float v, GzColor color)
     int vI = ceil(numIntvlV);
 
     if ((uI % 2 == 0 && vI % 2 == 0) || (uI % 2 != 0 && vI % 2 != 0)) { // even or odd at the same time
-        for (int i = 0; i < 3; i++) {
+        /*for (int i = 0; i < 3; i++) {
             color[i] = 100;
-        }
+        }*/
+        color[0] = 1;
+        color[1] = 0;
+        color[2] = 0;
     }
     else if ((uI % 2 == 0 && vI % 2 != 0) || (uI % 2 != 0 && vI % 2 == 0)) { // one is even the other is odd
         for (int i = 0; i < 3; i++) {

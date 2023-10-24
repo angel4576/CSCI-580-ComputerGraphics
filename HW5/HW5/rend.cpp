@@ -590,7 +590,7 @@ int GzRender::GzPutAttribute(int numAttributes, GzToken	*nameList, GzPointer *va
 			interp_mode = *interpModePtr;
 		}
 		else if (nameList[i] == GZ_AMBIENT_COEFFICIENT) {
-			GzColor* KaPtr = (GzColor*)valueList[i];
+			GzColor* KaPtr = (GzColor*) valueList[i];
 			Ka[0] = (*KaPtr)[0];
 			Ka[1] = (*KaPtr)[1];
 			Ka[2] = (*KaPtr)[2];
@@ -910,7 +910,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	float u3P = uv3[U] / (Vpz3 + 1);
 	float v3P = uv3[V] / (Vpz3 + 1);
 
-
 	GzColor txColorV1 = { 0.0f, 0.0f, 0.0f };
 	tex_fun(uv1[U], uv1[V], txColorV1);
 
@@ -936,15 +935,18 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	GzColor nColor2 = { 0.0f, 0.0f, 0.0f };
 	GzColor nColor3 = { 0.0f, 0.0f, 0.0f };
 
-	float* c1 = ShadingEquation(lights, txColorV1, txColorV1, txColorV1, ambientlight, spec, norm1, numlights, nColor1);
-	float* c2 = ShadingEquation(lights, txColorV2, txColorV2, txColorV2, ambientlight, spec, norm2, numlights, nColor2);
-	float* c3 = ShadingEquation(lights, txColorV3, txColorV3, txColorV3, ambientlight, spec, norm3, numlights, nColor3);
+	// Ignore K coefficient when calculating vertex color in Gouraud shading (then use this to interpolate to pixel)
+	// then multiply by texture color
+	GzColor K1 = { 1, 1, 1 };
+	float* c1 = ShadingEquation(lights, K1, K1, K1, ambientlight, spec, norm1, numlights, nColor1);
+	float* c2 = ShadingEquation(lights, K1, K1, K1, ambientlight, spec, norm2, numlights, nColor2);
+	float* c3 = ShadingEquation(lights, K1, K1, K1, ambientlight, spec, norm3, numlights, nColor3);
 	
-	/*
-		Hw4 color
-		float* c1 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm1, numlights, nColor1);
-		float* c2 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm2, numlights, nColor2);
-		float* c3 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm3, numlights, nColor3);
+	
+		// Hw4 color
+	/*float* c1 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm1, numlights, nColor1);
+	float* c2 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm2, numlights, nColor2);
+	float* c3 = ShadingEquation(lights, Ka, Kd, Ks, ambientlight, spec, norm3, numlights, nColor3);
 	*/
 
 	// Red
@@ -1171,15 +1173,28 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			// Calculate current vertex on spanline
 			spanCur = SpanLine(spanCur, left, right, dx, spanCurVer);
 
+			GzColor gColor = { 0.0f, 0.0f, 0.0f }; // for Gouraud shading
 			GzColor resColor = { 0.0f, 0.0f, 0.0f };
+
 			GzCoord resNorm = { 0.0f, 0.0f, 0.0f };
 			GzTextureIndex resUV = { 0.0f, 0.0f };
 			// Gouraud shading
 			if (interp_mode == GZ_COLOR) {
-				// InterpolateColor(nR, nG, nB, DR, DG, DB, spanCur[0], spanCur[1], resColor);
+				InterpolateColor(nR, nG, nB, DR, DG, DB, spanCur[0], spanCur[1], gColor);
 				InterpolateUV(nU, nV, DU, DV, spanCur[0], spanCur[1], resUV);
+				
+				// Transform interpolated parameters back to affine space after interpolation	
+				// P = Ps (V'z + 1) 
+				float vpz = spanCur[Z] / (MAXINT - spanCur[Z]);
+				resUV[U] = resUV[U] * (vpz + 1);
+				resUV[V] = resUV[V] * (vpz + 1);
+
 				tex_fun(resUV[U], resUV[V], resColor);
-				// ShadingEquation(lights, txColorV1, txColorV1, txColorV1, ambientlight, spec, norm1, numlights, resColor);
+				
+				// use tex_fun color as K to multiply interpolated color
+				for (int i = 0; i < 3; i++) {
+					resColor[i] *= gColor[i];
+				}
 
 			}
 			else if (interp_mode == GZ_NORMALS) {
@@ -1250,12 +1265,27 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		for (int x = ceil(left[0]); x < ceil(right[0]); x++) {
 			spanCur = SpanLine(spanCur, left, right, dx, spanCurVer);
 
+			GzColor gColor = { 0.0f, 0.0f, 0.0f }; // for Gouraud shading
 			GzColor resColor = { 0.0f, 0.0f, 0.0f };
+
 			GzColor resNorm = { 0.0f, 0.0f, 0.0f };
 			GzTextureIndex resUV = { 0.0f, 0.0f };
 			// Gouraud shading
 			if (interp_mode == GZ_COLOR) {
-				InterpolateColor(nR, nG, nB, DR, DG, DB, spanCur[0], spanCur[1], resColor);
+				InterpolateColor(nR, nG, nB, DR, DG, DB, spanCur[0], spanCur[1], gColor);
+				InterpolateUV(nU, nV, DU, DV, spanCur[0], spanCur[1], resUV);
+				
+				// Transform interpolated parameters back to affine space after interpolation	
+				// P = Ps (V'z + 1) 
+				float vpz = spanCur[Z] / (MAXINT - spanCur[Z]);
+				resUV[U] = resUV[U] * (vpz + 1);
+				resUV[V] = resUV[V] * (vpz + 1);
+
+				tex_fun(resUV[U], resUV[V], resColor);
+
+				for (int i = 0; i < 3; i++) {
+					resColor[i] *= gColor[i];
+				}
 			}
 			// Phong shading
 			else if (interp_mode == GZ_NORMALS) {
